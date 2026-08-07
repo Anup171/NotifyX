@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 MD013 -->
 # NotifyX - Real-time Notification System
 
 ![Banner](./assets/banner.png)
@@ -10,16 +11,16 @@ A real-time notification platform built with Node.js, Express, Socket.io, MongoD
 
 ## Stack
 
-| Layer       | Technology                               |
-|-------------|-------------------------------------------|
-| API server  | Express.js                                |
-| Real-time   | Socket.io                                 |
-| Database    | MongoDB (Atlas)                           |
-| ODM         | Mongoose                                  |
-| Cache       | Redis (Upstash) - idempotency + caches only |
-| Auth        | JWT (jsonwebtoken) + API keys (SHA-256 hashed) |
-| Validation  | Joi                                       |
-| Frontend    | React via CDN (no build step)             |
+| Layer      | Technology                                     |
+| ---------- | ---------------------------------------------- |
+| API server | Express.js                                     |
+| Real-time  | Socket.io                                      |
+| Database   | MongoDB (Atlas)                                |
+| ODM        | Mongoose                                       |
+| Cache      | Redis (Upstash) - idempotency + caches only    |
+| Auth       | JWT (jsonwebtoken) + API keys (SHA-256 hashed) |
+| Validation | Joi                                            |
+| Frontend   | React via CDN (no build step)                  |
 
 ---
 
@@ -65,6 +66,7 @@ Your App (HTTP)
 ```
 
 **Key design decisions:**
+
 - **One process.** Dispatch runs inline in the API server via `setImmediate` and emits straight through Socket.io - no separate worker process, no broker between accept and deliver.
 - **Redis is reserved for what genuinely needs it:** idempotency (`SET NX`), unread badge caching, preference caching, delivery counters. No queue, no Pub/Sub, no presence polling.
 - **In-memory online presence** via Socket.io rooms (`io.sockets.adapter.rooms.get(userId)`). No `online:{userId}` heartbeat keys.
@@ -199,15 +201,16 @@ GET /health        # { status, uptime } - DB readiness only, no Redis hit
 
 ## Live Demo
 
-**Production Deployment (Free Tier)**
+### Production Deployment (Free Tier)
 
-| Component | URL | Status |
-|-----------|-----|--------|
-| **Dashboard** | https://notifyx-sumit.vercel.app | Live |
-| **API Server** | https://notifyx-d60k.onrender.com | Live |
-| **Health Check** | https://notifyx-d60k.onrender.com/health | OK |
+| Component        | URL                                        | Status |
+| ---------------- | ------------------------------------------ | ------ |
+| **Dashboard**    | <https://notifyx-sumit.vercel.app>         | Live   |
+| **API Server**   | <https://notifyx-d60k.onrender.com>        | Live   |
+| **Health Check** | <https://notifyx-d60k.onrender.com/health> | OK     |
 
 **Quick Test:**
+
 1. Visit the [live dashboard](https://notifyx-sumit.vercel.app)
 2. Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars)
 3. Go to **Queue** tab -> Send a test notification
@@ -220,7 +223,8 @@ GET /health        # { status, uptime } - DB readiness only, no Redis hit
 
 **Prerequisites:** Node.js 18+, MongoDB, Redis (local or Upstash).
 
-**1. Clone and install**
+### 1. Clone and install
+
 ```bash
 git clone https://github.com/YOUR_USERNAME/notifyx.git
 cd notifyx
@@ -229,9 +233,10 @@ npm install              # shared/models needs mongoose
 cd server && npm install
 ```
 
-**2. Configure environment**
+### 2. Configure environment
 
 `server/.env`:
+
 ```text
 PORT=3000
 NODE_ENV=development
@@ -242,7 +247,8 @@ ADMIN_SECRET=notifyx-demo
 CORS_ORIGIN=http://localhost:8080
 ```
 
-**3. Start services**
+### 3. Start services
+
 ```bash
 # Terminal 1 - API server + dispatcher (one process)
 cd server && npm start
@@ -251,7 +257,8 @@ cd server && npm start
 cd frontend && npx serve . -l 8080
 ```
 
-**4. Open browser**
+### 4. Open browser
+
 - Dashboard: `http://localhost:8080/dashboard.html`
 - Landing: `http://localhost:8080/` (or `/landing.html`)
 - Health: `http://localhost:3000/health`
@@ -265,12 +272,12 @@ Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars).
 <details>
 <summary>Cloud Setup</summary>
 
-| Service   | Provider                         | Free tier                 |
-|-----------|----------------------------------|---------------------------|
-| MongoDB   | [Atlas](https://atlas.mongodb.com) | M0 - 512 MB              |
-| Redis     | [Upstash](https://upstash.com)   | 10K commands/day          |
-| API server| [Render.com](https://render.com) | 750 hrs/month             |
-| Frontend  | [Vercel](https://vercel.com)    | Unlimited static          |
+| Service    | Provider                           | Free tier        |
+| ---------- | ---------------------------------- | ---------------- |
+| MongoDB    | [Atlas](https://atlas.mongodb.com) | M0 - 512 MB      |
+| Redis      | [Upstash](https://upstash.com)     | 10K commands/day |
+| API server | [Render.com](https://render.com)   | 750 hrs/month    |
+| Frontend   | [Vercel](https://vercel.com)       | Unlimited static |
 
 > No background-worker service is needed. Render's free web service can sleep when idle because nothing polls Redis in a loop.
 
@@ -282,6 +289,7 @@ Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars).
 <summary>Deployment</summary>
 
 **For detailed step-by-step deployment guide, see [DEPLOYMENT.md](./DEPLOYMENT.md) - covers:**
+
 - MongoDB Atlas setup (free 512MB tier)
 - Upstash Redis setup (free 10K commands/day)
 - Render backend deployment (auto-scaling, 750 hrs/month free)
@@ -289,6 +297,7 @@ Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars).
 - CORS configuration and testing
 
 **Quick Summary:**
+
 - Backend: Render + `render.yaml` (single web service, no worker)
 - Frontend: Vercel (root `frontend/`)
 - Database: MongoDB Atlas (M0 free tier)
@@ -304,7 +313,8 @@ Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars).
 
 ### For Server-to-Server (API Keys)
 
-**Step 1 - Create an API key**
+#### Step 1 - Create an API key
+
 ```bash
 curl -X POST https://YOUR_API_URL/api/keys \
   -H "x-admin-secret: your-admin-secret" \
@@ -313,64 +323,69 @@ curl -X POST https://YOUR_API_URL/api/keys \
 # Returns: { "key": "nx_...", "note": "Save this - shown once only" }
 ```
 
-**Step 2 - Send notifications from your backend**
+#### Step 2 - Send notifications from your backend
+
 ```js
 const API_KEY = process.env.NOTIFYX_API_KEY;
 
 async function notifyUser(recipientId, senderId, type, message) {
-  const response = await fetch('https://YOUR_API_URL/api/notify', {
-    method: 'POST',
+  const response = await fetch("https://YOUR_API_URL/api/notify", {
+    method: "POST",
     headers: {
-      'Authorization': `ApiKey ${API_KEY}`,
-      'Content-Type':  'application/json',
+      Authorization: `ApiKey ${API_KEY}`,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
       recipientId,
       senderId,
-      type,                              // 'like' | 'comment' | 'follow' | 'mention'
-      payload:        { message, link: '/posts/123' },
+      type, // 'like' | 'comment' | 'follow' | 'mention'
+      payload: { message, link: "/posts/123" },
       idempotencyKey: crypto.randomUUID(),
-      priority:       5,                 // 1-10, optional
+      priority: 5, // 1-10, optional
     }),
   });
 
   if (!response.ok) {
-    console.error('Failed:', await response.json());
+    console.error("Failed:", await response.json());
     return null;
   }
 
-  return response.json();                // { status: 'accepted' }
+  return response.json(); // { status: 'accepted' }
 }
 
-await notifyUser('user_alice', 'my-blog', 'comment', 'Great post!');
+await notifyUser("user_alice", "my-blog", "comment", "Great post!");
 ```
 
 ### For Browser Clients (Socket.io)
 
-**Step 1 - Log in and get a JWT**
-```js
-const { token } = await fetch('https://YOUR_API_URL/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ userId: 'user_alice', password: '...' }),
-}).then(r => r.json());
+#### Step 1 - Log in and get a JWT
 
-localStorage.setItem('jwt_token', token);
+```js
+const { token } = await fetch("https://YOUR_API_URL/api/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ userId: "user_alice", password: "..." }),
+}).then((r) => r.json());
+
+localStorage.setItem("jwt_token", token);
 ```
 
-**Step 2 - Connect Socket.io and listen for notifications**
+#### Step 2 - Connect Socket.io and listen for notifications
+
 ```js
-const socket = io('https://YOUR_API_URL', {
-  auth: { token: localStorage.getItem('jwt_token') }
+const socket = io("https://YOUR_API_URL", {
+  auth: { token: localStorage.getItem("jwt_token") },
 });
 
-socket.on('notification', (notif) => {
+socket.on("notification", (notif) => {
   // { _id, recipientId, senderId, type, payload, delivered, createdAt }
   showNotificationToast(`${notif.senderId}: ${notif.payload.message}`);
 });
 
-socket.on('connect',    () => console.log('connected - offline sync triggered'));
-socket.on('disconnect', () => console.log('disconnected - will re-sync on reconnect'));
+socket.on("connect", () => console.log("connected - offline sync triggered"));
+socket.on("disconnect", () =>
+  console.log("disconnected - will re-sync on reconnect"),
+);
 ```
 
 ### Notification Types
@@ -415,6 +430,7 @@ POST /api/notify
 
 **Q: How do I prevent duplicate notifications?**
 A: Pass a unique `idempotencyKey` per request. Two layers protect against duplicates:
+
 1. **Redis `SET NX`** at the API boundary (24h TTL) - catches the fast path
 2. **MongoDB sparse unique index** in the dispatcher - catches the rare case where Redis is wiped before the TTL expires
 
@@ -442,14 +458,14 @@ A: Update `shared/constants.js` -> `NOTIFICATION_TYPES` and the Joi enum in `ser
 <details>
 <summary>Troubleshooting</summary>
 
-| Issue                              | Solution                                                                    |
-|------------------------------------|-----------------------------------------------------------------------------|
-| "Port 3000 already in use"         | `lsof -i :3000 \| awk 'NR==2 {print $2}' \| xargs kill`                    |
-| MongoDB connection fails           | Check `MONGODB_URI` - Atlas IP whitelist or local server running           |
-| Redis connection fails             | Check `REDIS_URL` - use `rediss://` for Upstash TLS                        |
+| Issue                              | Solution                                                                               |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| "Port 3000 already in use"         | `lsof -i :3000 \| awk 'NR==2 {print $2}' \| xargs kill`                                |
+| MongoDB connection fails           | Check `MONGODB_URI` - Atlas IP whitelist or local server running                       |
+| Redis connection fails             | Check `REDIS_URL` - use `rediss://` for Upstash TLS                                    |
 | Notifications not arriving         | Check `/api/users/preferences` - type may be muted, quiet hours active, or `inApp` off |
-| Socket.io not connecting           | Verify JWT and `CORS_ORIGIN`                                               |
-| `[Notify] dispatch failed` in logs  | Check Mongo connectivity; the 202 was returned but the row didn't land     |
+| Socket.io not connecting           | Verify JWT and `CORS_ORIGIN`                                                           |
+| `[Notify] dispatch failed` in logs | Check Mongo connectivity; the 202 was returned but the row didn't land                 |
 
 </details>
 
@@ -481,6 +497,7 @@ MongoDB owns the durable inbox (30-day TTL keeps disk bounded). Redis owns idemp
 <summary>Interview Prep</summary>
 
 See [INTERVIEW_NOTES.md](./INTERVIEW_NOTES.md) for a 2-minute verbal script and follow-up Q&As covering:
+
 - Architecture and the deliberate choice to drop BullMQ
 - Failure handling (no retries - trade-off accepted)
 - Scaling patterns (in-memory limits, when to reintroduce Pub/Sub)
