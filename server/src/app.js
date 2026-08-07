@@ -1,25 +1,25 @@
 require('dotenv').config();
 
 const express = require('express');
-const http    = require('http');
-const cors    = require('cors');
+const http = require('http');
+const cors = require('cors');
 
-const { connectDB }   = require('./config/db');
-const { redis }       = require('./config/redis');
-const { initSocket }  = require('./socket/socketServer');
+const { connectDB } = require('./config/db');
+const { redis } = require('./config/redis');
+const { initSocket } = require('./socket/socketServer');
 
-const app    = express();
+const app = express();
 const server = http.createServer(app);
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
 
-app.use('/api/auth',          require('./routes/auth'));
-app.use('/api/keys',          require('./routes/apikeys'));
-app.use('/api/notify',        require('./routes/notify'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/keys', require('./routes/apikeys'));
+app.use('/api/notify', require('./routes/notify'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/users',         require('./routes/preferences'));
-app.use('/api/metrics',       require('./routes/metrics'));
+app.use('/api/users', require('./routes/preferences'));
+app.use('/api/metrics', require('./routes/metrics'));
 
 // Health check — DB only. Do not call redis.ping() here: readiness probes
 // would burn Upstash commands on every poll.

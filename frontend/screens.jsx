@@ -838,7 +838,7 @@ const ApiKeys = () => {
     try {
       const data = await apiFetch('/api/keys/self', {
         method: 'POST',
-        body: JSON.stringify({ appName: appName.trim() }),
+        body: { appName: appName.trim() },
       });
       if (data.error) { setError(data.error); return; }
       setNewKey(data.key); setAppName(''); load();
