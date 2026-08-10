@@ -112,8 +112,6 @@ NotifyX/
 |       `-- socket/
 |           `-- socketServer.js # Auth, rooms, offline sync, exports getIO/isOnline
 |
-|-- worker/                     # Deprecated - no-op stub kept for legacy deploy refs
-|
 |-- frontend/                   # React-via-CDN dashboard + landing + integration guide
 |
 |-- render.yaml                 # Render.com - single web service
@@ -288,7 +286,7 @@ Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars).
 <details>
 <summary>Deployment</summary>
 
-**For detailed step-by-step deployment guide, see [DEPLOYMENT.md](./DEPLOYMENT.md) - covers:**
+**Deployment guide summary - covers:**
 
 - MongoDB Atlas setup (free 512MB tier)
 - Upstash Redis setup (free 10K commands/day)
@@ -496,7 +494,7 @@ MongoDB owns the durable inbox (30-day TTL keeps disk bounded). Redis owns idemp
 <details>
 <summary>Interview Prep</summary>
 
-See [INTERVIEW_NOTES.md](./INTERVIEW_NOTES.md) for a 2-minute verbal script and follow-up Q&As covering:
+Key interview prep points and follow-up Q&As covering:
 
 - Architecture and the deliberate choice to drop BullMQ
 - Failure handling (no retries - trade-off accepted)
