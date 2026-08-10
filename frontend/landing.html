@@ -46,7 +46,7 @@
     .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse-dot 2s infinite; }
     @keyframes pulse-dot { 0%,100% { opacity:1 } 50% { opacity:.3 } }
     h1 { font-size: clamp(36px, 6vw, 72px); font-weight: 900; line-height: 1.1; letter-spacing: -2px; margin-bottom: 20px; }
-    h1 span { background: linear-gradient(135deg, var(--green) 0%, #86efac 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 span { background: linear-gradient(135deg, var(--green) 0%, #86efac 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
     .hero p { font-size: 18px; color: var(--fg2); max-width: 540px; margin: 0 auto 36px; }
     .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
     .hero-ctas .btn-primary { font-size: 15px; padding: 11px 24px; }
