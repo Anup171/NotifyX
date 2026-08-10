@@ -19,7 +19,22 @@ app.use('/api/keys', require('./routes/apikeys'));
 app.use('/api/notify', require('./routes/notify'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/users', require('./routes/preferences'));
-app.use('/api/metrics', require('./routes/metrics'));
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'NotifyX API',
+    status: 'online',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth',
+      keys: '/api/keys',
+      notify: '/api/notify',
+      notifications: '/api/notifications',
+      users: '/api/users',
+      metrics: '/api/metrics'
+    }
+  });
+});
 
 // Health check — DB only. Do not call redis.ping() here: readiness probes
 // would burn Upstash commands on every poll.
