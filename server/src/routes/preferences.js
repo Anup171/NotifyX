@@ -37,4 +37,51 @@ router.put('/preferences', verifyJWT, async (req, res, next) => {
   }
 });
 
+// GET /api/users/integrations — fetch social/productivity integration statuses
+router.get('/integrations', verifyJWT, async (req, res, next) => {
+  try {
+    const userId = req.user.sub;
+    const user = await User.findOne({ userId }).lean();
+    const integrations = user?.integrations || {
+      github: { connected: false, username: '' },
+      gmail: { connected: false, email: '' },
+      linkedin: { connected: false, name: '' },
+      whatsapp: { connected: false, phone: '' },
+    };
+    res.json(integrations);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/users/integrations/toggle — connect/disconnect an integration
+router.post('/integrations/toggle', verifyJWT, async (req, res, next) => {
+  try {
+    const userId = req.user.sub;
+    const { provider, connected, accountName } = req.body;
+    if (!['github', 'gmail', 'linkedin', 'whatsapp'].includes(provider)) {
+      return res.status(400).json({ error: 'Invalid provider' });
+    }
+
+    const fieldMap = { github: 'username', gmail: 'email', linkedin: 'name', whatsapp: 'phone' };
+    const fieldName = fieldMap[provider];
+
+    const updateObj = {
+      [`integrations.${provider}.connected`]: Boolean(connected),
+      [`integrations.${provider}.${fieldName}`]: connected ? (accountName || `${userId}_${provider}`) : '',
+      [`integrations.${provider}.updatedAt`]: new Date(),
+    };
+
+    const user = await User.findOneAndUpdate(
+      { userId },
+      { $set: updateObj },
+      { new: true, upsert: true }
+    ).lean();
+
+    res.json(user.integrations);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

@@ -12,7 +12,7 @@ const router = express.Router();
 const schema = Joi.object({
   recipientId:    Joi.string().required(),
   senderId:       Joi.string().required(),
-  type:           Joi.string().valid('like', 'comment', 'follow', 'mention').required(),
+  type:           Joi.string().valid('like', 'comment', 'follow', 'mention', 'system').required(),
   payload:        Joi.object().default({}),
   idempotencyKey: Joi.string().required(),
   priority:       Joi.number().min(1).max(10).default(5),

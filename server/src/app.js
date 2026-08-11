@@ -19,6 +19,8 @@ app.use('/api/keys', require('./routes/apikeys'));
 app.use('/api/notify', require('./routes/notify'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/users', require('./routes/preferences'));
+app.use('/api/metrics', require('./routes/metrics'));
+app.use('/api/integrations', require('./routes/integrations'));
 app.get('/', (_req, res) => {
   res.json({
     service: 'NotifyX API',
@@ -52,16 +54,20 @@ app.use((err, _req, res, _next) => {
 
 const PORT = process.env.PORT || 3000;
 
+const { startPoller } = require('./services/integrationPoller');
+
 const start = async () => {
-  await connectDB();
-  await redis.connect();
   initSocket(server);
   server.listen(PORT, () => {
     console.log(`[Server] Running on http://localhost:${PORT}`);
   });
+
+  connectDB()
+    .then(() => startPoller())
+    .catch(err => console.error('[MongoDB] Connection error:', err.message));
+  redis.connect().catch(err => console.error('[Redis] Connection error:', err.message));
 };
 
 start().catch((err) => {
   console.error('[Server] Startup failed:', err);
-  process.exit(1);
 });

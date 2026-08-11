@@ -178,8 +178,8 @@ const OnboardingModal = ({ onDone }) => (
 // ─── Nav config ───────────────────────────────────────────────────────────────
 const NAV = [
   { k:'dashboard',     label:'Dashboard',     icon:'home',     screen:'Overview' },
-  { k:'queue',         label:'Queue',         icon:'queue',    screen:'Queue',   badge:'47', badgeKind:'err' },
-  { k:'notifications', label:'Notifications', icon:'bell',     screen:'Inbox',   badge:'3',  badgeKind:'' },
+  { k:'queue',         label:'Queue',         icon:'queue',    screen:'Queue' },
+  { k:'notifications', label:'Notifications', icon:'bell',     screen:'Inbox' },
   { k:'metrics',       label:'Metrics',       icon:'metrics',  screen:'Metrics' },
   { k:'apikeys',       label:'API Keys',      icon:'key',      screen:'API Keys' },
   { k:'settings',      label:'Settings',      icon:'settings', screen:'Settings' },
@@ -193,15 +193,25 @@ const App = () => {
   const [unread,    setUnread]    = React.useState(0);
   const [onboarding, setOnboarding] = React.useState(false);
 
-  // Hash-based routing so refreshing keeps the view
+  // Hash-based routing & global shortcuts
   React.useEffect(() => {
     const apply = () => {
       const h = (location.hash || '').replace('#', '') || 'dashboard';
       if (NAV.find(n => n.k === h)) setRoute(h);
     };
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('topbar-search-input')?.focus();
+      }
+    };
     apply();
     window.addEventListener('hashchange', apply);
-    return () => window.removeEventListener('hashchange', apply);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('hashchange', apply);
+      window.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const go = (k) => { location.hash = k; setRoute(k); };
@@ -305,16 +315,27 @@ const App = () => {
           </div>
           <div className="search">
             <Icon name="search" size={13}/>
-            <input placeholder="Search jobs, templates, recipients…"/>
+            <input id="topbar-search-input" placeholder="Search jobs, notifications, keys… (Press ⌘K)"
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const val = e.target.value.toLowerCase();
+                  if (val.includes('key')) go('apikeys');
+                  else if (val.includes('notif') || val.includes('inbox')) go('notifications');
+                  else if (val.includes('job') || val.includes('queue')) go('queue');
+                  else if (val.includes('setting') || val.includes('pref')) go('settings');
+                  else if (val.includes('metric')) go('metrics');
+                }
+              }}
+            />
             <span className="kbd">⌘K</span>
           </div>
           <div className="topbar-right">
-            <button className="icon-btn" title="Help"><Icon name="help" size={14}/></button>
+            <button className="icon-btn" title="Help / Onboarding" onClick={() => setOnboarding(true)}><Icon name="help" size={14}/></button>
             <button className="icon-btn" title="Notifications" style={{position:'relative'}} onClick={() => go('notifications')}>
               <Icon name="bell" size={14}/>
               {unread > 0 && <span className="bell-badge">{unread > 99 ? '99+' : unread}</span>}
             </button>
-            <div className="row" style={{gap:8,marginLeft:6,paddingLeft:10,borderLeft:'1px solid var(--border)'}}>
+            <div className="row" style={{gap:8,marginLeft:6,paddingLeft:10,borderLeft:'1px solid var(--border)',cursor:'pointer'}} onClick={() => go('settings')}>
               <div style={{width:26,height:26,borderRadius:'50%',background:'oklch(0.55 0.10 30)',color:'white',display:'grid',placeItems:'center',fontSize:11,fontWeight:600}}>
                 {userId.slice(0,2).toUpperCase()}
               </div>
