@@ -1,7 +1,7 @@
 // NotifyX data layer — mock data for charts + real API client
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
-const API_BASE = (window.NOTIFYX_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+const API_BASE = (window.NOTIFYX_API_URL || location.origin).replace(/\/$/, '');
 
 const getToken  = () => localStorage.getItem('notifyx_token');
 const setToken  = (t) => localStorage.setItem('notifyx_token', t);
@@ -145,3 +145,5 @@ const PREF_DEFS = [
 ];
 
 window.NTFX_DATA = { STATS, JOBS_SERIES, ACTIVITY, QUEUE_JOBS, DEFAULT_PREFS, PREF_DEFS, JOB_TYPES, STATUSES };
+
+

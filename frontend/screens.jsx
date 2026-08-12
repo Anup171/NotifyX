@@ -2,7 +2,7 @@
 
 const { Icon } = window;
 const { Sparkline, AreaChart, RingChart, BarChart, Heatmap } = window.Charts;
-const { STATS, JOBS_SERIES, ACTIVITY, QUEUE_JOBS, DEFAULT_PREFS, PREF_DEFS } = window.NTFX_DATA;
+const { DEFAULT_PREFS, PREF_DEFS } = window.NTFX_DATA;
 const { apiFetch } = window.NTFX_AUTH;
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -33,24 +33,27 @@ const Dashboard = ({ onNavigate }) => {
   const [range, setRange] = React.useState('24h');
   const [loading, setLoading] = React.useState(true);
   const [metrics, setMetrics] = React.useState(null);
+  const [error, setError] = React.useState(null);
   const { label: lastUpdated, refresh, refreshing } = useLastUpdated();
 
   React.useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 650);
-    apiFetch('/api/metrics').then(setMetrics).catch(() => {});
-    return () => clearTimeout(t);
+    setLoading(true);
+    apiFetch('/api/metrics')
+      .then(setMetrics)
+      .catch((err) => setError(err.message || 'Unable to load metrics'))
+      .finally(() => setLoading(false));
   }, []);
 
   const stats = metrics ? [
-    { label: 'Total Dispatched',  value: metrics.delivery.total.toLocaleString(),   delta: null,        trend: 'neutral', hint: 'all time' },
-    { label: 'Delivered',         value: metrics.delivery.success.toLocaleString(),  delta: null,        trend: 'up',      hint: 'successfully sent' },
-    { label: 'Failed',            value: metrics.delivery.failed.toLocaleString(),   delta: null,        trend: 'down',    hint: 'pending retry' },
-    { label: 'Success Rate',      value: `${metrics.delivery.successRate}%`,         delta: null,        trend: 'up',      hint: 'delivery SLO' },
+    { label: 'Total dispatched', value: metrics.delivery.total.toLocaleString(), delta: null, trend: 'neutral', hint: 'all time' },
+    { label: 'Delivered',       value: metrics.delivery.success.toLocaleString(), delta: null, trend: 'up',      hint: 'successfully sent' },
+    { label: 'Failed',          value: metrics.delivery.failed.toLocaleString(), delta: null, trend: 'down',    hint: 'pending retry' },
+    { label: 'Success rate',    value: `${metrics.delivery.successRate}%`,       delta: null, trend: 'up',      hint: 'delivery SLO' },
   ] : [
-    { label: 'Total dispatched', value: '2,847,193', delta: '+4.2%', trend: 'up',    hint: 'vs prior 24h' },
-    { label: 'In flight',        value: '1,284',     delta: '+86',   trend: 'up',    hint: 'active workers' },
-    { label: 'Failed',           value: '47',        delta: '−12',   trend: 'down-good', hint: 'auto-retry queued' },
-    { label: 'Throughput p95',   value: '4,127/s',   delta: '124ms', trend: 'neutral', hint: 'enqueue → deliver' },
+    { label: 'Total dispatched', value: 'N/A', delta: null, trend: 'neutral', hint: 'data unavailable' },
+    { label: 'Delivered',       value: 'N/A', delta: null, trend: 'neutral', hint: 'data unavailable' },
+    { label: 'Failed',          value: 'N/A', delta: null, trend: 'neutral', hint: 'data unavailable' },
+    { label: 'Success rate',    value: 'N/A', delta: null, trend: 'neutral', hint: 'data unavailable' },
   ];
 
   return (
@@ -75,8 +78,12 @@ const Dashboard = ({ onNavigate }) => {
           <div className="hero-title-block">
             <div className="hero-eyebrow">Throughput</div>
             <h2 className="hero-headline">
-              <span className="mono">2.84M</span> notifications dispatched
-              <span className="hero-headline-dim"> in the last 24 hours</span>
+              {metrics ? (
+                <><span className="mono">{metrics.delivery.total.toLocaleString()}</span> notifications dispatched</>
+              ) : (
+                'Throughput data unavailable'
+              )}
+              <span className="hero-headline-dim">{metrics ? ' in the last 24 hours' : ''}</span>
             </h2>
           </div>
           <div className="hero-controls">
@@ -101,8 +108,14 @@ const Dashboard = ({ onNavigate }) => {
                 ))}
               </div>
             </div>
+          ) : metrics ? (
+            <div className="chart-empty" style={{padding:'48px',textAlign:'center',color:'var(--fg-muted)'}}>
+              Delivery metrics loaded successfully. Historical chart data is not available for this deployment.
+            </div>
           ) : (
-            <AreaChart series={JOBS_SERIES} labels={JOBS_SERIES.labels} height={320}/>
+            <div className="chart-empty" style={{padding:'48px',textAlign:'center',color:'var(--fg-muted)'}}>
+              {error ? `Unable to load throughput metrics: ${error}` : 'No throughput metrics available.'}
+            </div>
           )}
         </div>
         <div className="hero-stats">
@@ -117,7 +130,7 @@ const Dashboard = ({ onNavigate }) => {
           <div className="card-h tight">
             <div className="card-h-block">
               <h3>Recent activity</h3>
-              <div className="sub mono">live · {ACTIVITY.length} events / min</div>
+              <div className="sub mono">live · activity unavailable</div>
             </div>
             <button className="btn ghost sm">View all</button>
           </div>
@@ -133,18 +146,11 @@ const Dashboard = ({ onNavigate }) => {
                 </div>
               ))
             ) : (
-              ACTIVITY.slice(0,7).map((a,i)=>(
-                <div className="activity-item" key={i}>
-                  <div className={`activity-icon ${a.ch}`}>
-                    <Icon name={a.ch==='email'?'mail':a.ch==='push'?'push':a.ch==='sms'?'phone':'inapp'} size={12}/>
-                  </div>
-                  <div className="activity-text">
-                    <div className="title">{a.title}</div>
-                    <div className="meta">{a.meta}</div>
-                  </div>
-                  <div className="activity-time">{a.t}</div>
-                </div>
-              ))
+              <div className="empty-state" style={{padding:'48px',border:'none',margin:0}}>
+                <div className="empty-title">Live activity unavailable</div>
+                <div className="empty-sub">No recent events are available for display. Activity will appear here once the backend provides live event data.</div>
+                {error && <div style={{marginTop:12,color:'var(--red)',fontSize:13}}>Error loading metrics: {error}</div>}
+              </div>
             )}
           </div>
         </div>
@@ -190,8 +196,8 @@ const Dashboard = ({ onNavigate }) => {
 const QUICK_LINKS = [
   { label: 'Dashboard',  href: () => `${location.origin}/dashboard.html`,                             icon: 'home',    hint: 'React app' },
   { label: 'Landing',    href: () => `${location.origin}/`,                                           icon: 'help',    hint: 'Demo & docs' },
-  { label: 'API',        href: () => `${window.NOTIFYX_API_URL || 'http://localhost:3000'}`,          icon: 'metrics', hint: 'REST base URL' },
-  { label: 'Health',     href: () => `${window.NOTIFYX_API_URL || 'http://localhost:3000'}/health`,   icon: 'check',   hint: 'Readiness probe' },
+  { label: 'API',        href: () => `${window.NOTIFYX_API_URL || location.origin}`,                  icon: 'metrics', hint: 'REST base URL' },
+  { label: 'Health',     href: () => `${window.NOTIFYX_API_URL || location.origin}/health`,           icon: 'check',   hint: 'Readiness probe' },
 ];
 
 const QuickAccessBar = () => {
@@ -248,16 +254,8 @@ const ago = (sec) => {
 const Queue = () => {
   const [filter, setFilter] = React.useState('all');
   const [type,   setType]   = React.useState('all');
-  const [jobs,   setJobs]   = React.useState(QUEUE_JOBS);
+  const [jobs,   setJobs]   = React.useState([]);
   const [toast,  setToast]  = React.useState(null);
-
-  // Merge real queue counts from API
-  React.useEffect(() => {
-    apiFetch('/api/metrics').then(m => {
-      // Update counts displayed in the filter bar using real data
-      // Jobs list keeps mock data for demo — there is no real queue anymore
-    }).catch(() => {});
-  }, []);
 
   const counts = React.useMemo(() => {
     const c = { all: jobs.length };
@@ -694,13 +692,19 @@ const Settings = () => {
 // ─── Metrics ──────────────────────────────────────────────────────────────────
 const Metrics = () => {
   const [metrics, setMetrics] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
-    apiFetch('/api/metrics').then(setMetrics).catch(() => {});
+    setLoading(true);
+    apiFetch('/api/metrics')
+      .then(setMetrics)
+      .catch((err) => setError(err.message || 'Unable to load metrics'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const successRate = metrics ? parseFloat(metrics.delivery.successRate) : 98.66;
-  const failureRate = metrics ? parseFloat(metrics.delivery.failureRate) : 1.34;
+  const successRate = metrics ? parseFloat(metrics.delivery.successRate) : null;
+  const failureRate = metrics ? parseFloat(metrics.delivery.failureRate) : null;
 
   const latencyBars  = [88, 96, 124, 168, 142, 110, 102, 118];
   const latencyLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun','Now'];
@@ -730,24 +734,32 @@ const Metrics = () => {
             <span className="pill completed"><span className="pdot"/>within SLO</span>
           </div>
           <div className="card-body" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:24}}>
-            <RingChart value={successRate} label="success" color="oklch(0.72 0.14 155)"/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:11,color:'var(--fg-faint)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8}}>Breakdown</div>
-              {[
-                {label:'Email · SES',     v:99.82, color:'oklch(0.68 0.13 245)'},
-                {label:'Push · APNs/FCM', v:99.41, color:'oklch(0.72 0.13 295)'},
-                {label:'SMS · Twilio',    v:97.84, color:'oklch(0.78 0.13 80)'},
-                {label:'In-app · WS',     v:99.99, color:'oklch(0.72 0.14 155)'},
-              ].map((row,i)=>(
-                <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px',gap:10,alignItems:'center',padding:'6px 0',borderTop:i?'1px solid var(--border)':'0'}}>
-                  <div style={{fontSize:12}}>{row.label}</div>
-                  <div style={{height:4,background:'var(--panel-2)',borderRadius:2,overflow:'hidden'}}>
-                    <div style={{height:'100%',width:`${row.v}%`,background:row.color}}/>
-                  </div>
-                  <div className="mono" style={{fontSize:11,color:'var(--fg-muted)',textAlign:'right'}}>{row.v.toFixed(2)}%</div>
+            {metrics ? (
+              <>
+                <RingChart value={successRate} label="success" color="oklch(0.72 0.14 155)"/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:'var(--fg-faint)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8}}>Breakdown</div>
+                  {[
+                    {label:'Email · SES',     v:99.82, color:'oklch(0.68 0.13 245)'},
+                    {label:'Push · APNs/FCM', v:99.41, color:'oklch(0.72 0.13 295)'},
+                    {label:'SMS · Twilio',    v:97.84, color:'oklch(0.78 0.13 80)'},
+                    {label:'In-app · WS',     v:99.99, color:'oklch(0.72 0.14 155)'},
+                  ].map((row,i)=>(
+                    <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px',gap:10,alignItems:'center',padding:'6px 0',borderTop:i?'1px solid var(--border)':'0'}}>
+                      <div style={{fontSize:12}}>{row.label}</div>
+                      <div style={{height:4,background:'var(--panel-2)',borderRadius:2,overflow:'hidden'}}>
+                        <div style={{height:'100%',width:`${row.v}%`,background:row.color}}/>
+                      </div>
+                      <div className="mono" style={{fontSize:11,color:'var(--fg-muted)',textAlign:'right'}}>{row.v.toFixed(2)}%</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div style={{padding:'36px 0',flex:1,textAlign:'center',color:'var(--fg-muted)'}}>
+                {loading ? 'Loading metrics…' : (error ? `Unable to load metrics: ${error}` : 'No metrics available.')}
+              </div>
+            )}
           </div>
         </div>
 
@@ -760,25 +772,33 @@ const Metrics = () => {
             <span className="pill pending"><span className="pdot"/>watch</span>
           </div>
           <div className="card-body" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:24}}>
-            <RingChart value={failureRate} label="failure" color="oklch(0.68 0.17 25)"/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:11,color:'var(--fg-faint)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8}}>
-                {metrics ? `Total: ${metrics.delivery.total.toLocaleString()} processed` : 'Top error reasons'}
-              </div>
-              {[
-                {label:'Provider timeout', v:412, p:38},
-                {label:'Bounced recipient',v:268, p:25},
-                {label:'Rate limited',     v:174, p:16},
-                {label:'Invalid token',    v:122, p:11},
-                {label:'Other',            v:108, p:10},
-              ].map((row,i)=>(
-                <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 60px',gap:10,alignItems:'center',padding:'6px 0',borderTop:i?'1px solid var(--border)':'0'}}>
-                  <div style={{fontSize:12}}>{row.label}</div>
-                  <div className="mono" style={{fontSize:11,color:'var(--fg-muted)',textAlign:'right'}}>{row.v}</div>
-                  <div className="mono" style={{fontSize:11,color:'var(--fg-faint)',textAlign:'right'}}>{row.p}%</div>
+            {metrics ? (
+              <>
+                <RingChart value={failureRate} label="failure" color="oklch(0.68 0.17 25)"/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:11,color:'var(--fg-faint)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8}}>
+                    Total: {metrics.delivery.total.toLocaleString()} processed
+                  </div>
+                  {[
+                    {label:'Provider timeout', v:412, p:38},
+                    {label:'Bounced recipient',v:268, p:25},
+                    {label:'Rate limited',     v:174, p:16},
+                    {label:'Invalid token',    v:122, p:11},
+                    {label:'Other',            v:108, p:10},
+                  ].map((row,i)=>(
+                    <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 60px',gap:10,alignItems:'center',padding:'6px 0',borderTop:i?'1px solid var(--border)':'0'}}>
+                      <div style={{fontSize:12}}>{row.label}</div>
+                      <div className="mono" style={{fontSize:11,color:'var(--fg-muted)',textAlign:'right'}}>{row.v}</div>
+                      <div className="mono" style={{fontSize:11,color:'var(--fg-faint)',textAlign:'right'}}>{row.p}%</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div style={{padding:'36px 0',flex:1,textAlign:'center',color:'var(--fg-muted)'}}>
+                {loading ? 'Loading metrics…' : (error ? `Unable to load metrics: ${error}` : 'No metrics available.')}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -789,14 +809,26 @@ const Metrics = () => {
             <div><h3>Processing time</h3><div className="sub">p95 enqueue → delivery (ms)</div></div>
             <span className="mono" style={{color:'var(--fg-faint)',fontSize:11}}>p50 56ms · p95 124ms · p99 412ms</span>
           </div>
-          <div className="chart-wrap"><BarChart data={latencyBars} labels={latencyLabels} color="oklch(0.68 0.13 245)" suffix="ms"/></div>
+          {metrics ? (
+            <div className="chart-wrap"><BarChart data={latencyBars} labels={latencyLabels} color="oklch(0.68 0.13 245)" suffix="ms"/></div>
+          ) : (
+            <div className="card-body" style={{padding:'48px 0',textAlign:'center',color:'var(--fg-muted)'}}>
+              {loading ? 'Loading metrics…' : (error ? `Unable to load metrics: ${error}` : 'Processing time metrics unavailable.')}
+            </div>
+          )}
         </div>
         <div className="card">
           <div className="card-h">
             <div><h3>Throughput</h3><div className="sub">Events per minute · last 24h</div></div>
             <span className="mono" style={{color:'var(--fg-faint)',fontSize:11}}>peak 4,320/min at 12:00 UTC</span>
           </div>
-          <div className="chart-wrap"><BarChart data={throughputBars} labels={throughputLabels} color="oklch(0.72 0.13 295)" suffix=""/></div>
+          {metrics ? (
+            <div className="chart-wrap"><BarChart data={throughputBars} labels={throughputLabels} color="oklch(0.72 0.13 295)" suffix=""/></div>
+          ) : (
+            <div className="card-body" style={{padding:'48px 0',textAlign:'center',color:'var(--fg-muted)'}}>
+              {loading ? 'Loading metrics…' : (error ? `Unable to load metrics: ${error}` : 'Throughput metrics unavailable.')}
+            </div>
+          )}
         </div>
       </div>
 
@@ -805,7 +837,13 @@ const Metrics = () => {
           <div><h3>Volume heatmap</h3><div className="sub">By weekday × hour · the last 7 days</div></div>
           <span className="mono" style={{color:'var(--fg-faint)',fontSize:11}}>UTC</span>
         </div>
-        <div className="card-body"><Heatmap/></div>
+        {metrics ? (
+          <div className="card-body"><Heatmap/></div>
+        ) : (
+          <div className="card-body" style={{padding:'48px 0',textAlign:'center',color:'var(--fg-muted)'}}>
+            {loading ? 'Loading metrics…' : (error ? `Unable to load metrics: ${error}` : 'Heatmap data unavailable.')}
+          </div>
+        )}
       </div>
     </div>
   );

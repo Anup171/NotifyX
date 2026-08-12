@@ -11,7 +11,16 @@ const { initSocket } = require('./socket/socketServer');
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+const corsOrigin = process.env.CORS_ORIGIN;
+const corsOptions = corsOrigin && corsOrigin.trim() !== '*' ? {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowed = corsOrigin.split(',').map(o => o.trim()).filter(Boolean);
+    if (allowed.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+} : { origin: true };
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/api/auth', require('./routes/auth'));
