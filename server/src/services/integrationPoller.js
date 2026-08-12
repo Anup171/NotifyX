@@ -149,10 +149,10 @@ const pollGitHub = async (userId, username) => {
   return created;
 };
 
-// ─── Poll Gmail for a single user (if Google OAuth token exists) ─────────────
+// ─── Poll Gmail for a single user (real API only) ───────────────────────────
 
-const pollGmail = async (userId, email) => {
-  const token = process.env.GOOGLE_ACCESS_TOKEN;
+const pollGmail = async (userId, email, userAccessToken) => {
+  const token = userAccessToken || process.env.GOOGLE_ACCESS_TOKEN;
   if (!token) return 0;
 
   try {
@@ -184,10 +184,10 @@ const pollGmail = async (userId, email) => {
   }
 };
 
-// ─── Poll LinkedIn for a single user (if LinkedIn token exists) ──────────────
+// ─── Poll LinkedIn for a single user (real API only) ─────────────────────────
 
-const pollLinkedIn = async (userId, name) => {
-  const token = process.env.LINKEDIN_ACCESS_TOKEN;
+const pollLinkedIn = async (userId, name, userAccessToken) => {
+  const token = userAccessToken || process.env.LINKEDIN_ACCESS_TOKEN;
   if (!token) return 0;
 
   try {
@@ -197,6 +197,7 @@ const pollLinkedIn = async (userId, name) => {
     if (!resp.ok) return 0;
     return 0;
   } catch (err) {
+    console.error(`[IntegrationPoller] LinkedIn poll error: ${err.message}`);
     return 0;
   }
 };
@@ -213,14 +214,13 @@ const pollAll = async () => {
         { 'integrations.github.connected': true },
         { 'integrations.gmail.connected': true },
         { 'integrations.linkedin.connected': true },
-        { 'integrations.whatsapp.connected': true },
       ],
     }).lean();
 
     if (users.length === 0) return;
 
     for (const user of users) {
-      // GitHub
+      // GitHub (Real unauthenticated REST API)
       if (user.integrations?.github?.connected && user.integrations.github.username) {
         const count = await pollGitHub(user.userId, user.integrations.github.username);
         if (count > 0) {
@@ -228,14 +228,20 @@ const pollAll = async () => {
         }
       }
 
-      // Gmail
+      // Gmail (Real OAuth API if token set)
       if (user.integrations?.gmail?.connected && user.integrations.gmail.email) {
-        await pollGmail(user.userId, user.integrations.gmail.email);
+        const count = await pollGmail(user.userId, user.integrations.gmail.email, user.integrations.gmail.accessToken);
+        if (count > 0) {
+          console.log(`[IntegrationPoller] Created ${count} Gmail notification(s) for ${user.userId}`);
+        }
       }
 
-      // LinkedIn
+      // LinkedIn (Real OAuth API if token set)
       if (user.integrations?.linkedin?.connected && user.integrations.linkedin.name) {
-        await pollLinkedIn(user.userId, user.integrations.linkedin.name);
+        const count = await pollLinkedIn(user.userId, user.integrations.linkedin.name, user.integrations.linkedin.accessToken);
+        if (count > 0) {
+          console.log(`[IntegrationPoller] Created ${count} LinkedIn notification(s) for ${user.userId}`);
+        }
       }
     }
   } catch (err) {
@@ -260,3 +266,4 @@ const stopPoller = () => {
 };
 
 module.exports = { startPoller, stopPoller, pollAll, pollGitHub, pollGmail, pollLinkedIn };
+

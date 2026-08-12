@@ -723,12 +723,229 @@ const Notifications = ({ socket, onUnreadChange }) => {
   );
 };
 
+// ─── Connect Integration Wizard Modal ───────────────────────────────────────
+const ConnectWizardModal = ({ provider, currentData, onClose, onSave }) => {
+  const handleVal = currentData?.username || currentData?.email || currentData?.name || currentData?.phone || '';
+  const [accountName, setAccountName] = React.useState(handleVal);
+  const [accessToken, setAccessToken] = React.useState('');
+  const [phoneId, setPhoneId] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const webhookBase = (window.NOTIFYX_API_URL || `${window.location.protocol}//${window.location.hostname}:3000`).replace(/\/$/, '');
+
+  const configs = {
+    github: {
+      title: 'Connect GitHub Integration',
+      icon: 'github',
+      accountLabel: 'GitHub Username or Profile Handle',
+      accountPlaceholder: 'e.g. Anup171',
+      guideTitle: 'GitHub Public REST API & Webhooks',
+      guideBody: (
+        <>
+          <p>Public GitHub activity (commits, PRs, issues, stars) is automatically polled via the official GitHub REST API.</p>
+          <div className="wiz-code-box">
+            <span>Webhook URL: {webhookBase}/api/integrations/webhooks/github</span>
+          </div>
+        </>
+      ),
+      tokenLabel: 'Personal Access Token (PAT) — Optional',
+      tokenPlaceholder: 'ghp_xxxxxxxxxxxxxxxxxxxx',
+      tokenHint: 'Optional. Only required if you want to poll or receive events from private GitHub repositories.',
+    },
+    gmail: {
+      title: 'Connect Gmail Account',
+      icon: 'mail',
+      accountLabel: 'Gmail Email Address',
+      accountPlaceholder: 'e.g. anupbhandarkar171@gmail.com',
+      guideTitle: 'Google Cloud OAuth API Setup',
+      guideBody: (
+        <>
+          <p>To pull real emails from Gmail API, Google requires an OAuth Access Token to protect inbox privacy.</p>
+          <ol>
+            <li>Open the <a href="https://developers.google.com/oauthplayground/" target="_blank" rel="noreferrer" style={{color:'var(--accent)',textDecoration:'underline'}}>Google OAuth 2.0 Playground</a>.</li>
+            <li>Select <b>Gmail API v1</b> (<code>https://mail.google.com/</code>) and click <b>Authorize APIs</b>.</li>
+            <li>Exchange authorization code for tokens and copy your <b>Access Token</b> below.</li>
+          </ol>
+          <div className="wiz-code-box">
+            <span>Pub/Sub Push Webhook: {webhookBase}/api/integrations/webhooks/gmail</span>
+          </div>
+        </>
+      ),
+      tokenLabel: 'Google OAuth Access Token',
+      tokenPlaceholder: 'ya29.a0Axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      tokenHint: 'Paste your OAuth Access Token from Google OAuth Playground or Google Cloud Console.',
+    },
+    linkedin: {
+      title: 'Connect LinkedIn Integration',
+      icon: 'linkedin',
+      accountLabel: 'LinkedIn Profile Handle or Page Name',
+      accountPlaceholder: 'e.g. anup-bhandarkar',
+      guideTitle: 'LinkedIn Developer Portal & Partner Webhooks',
+      guideBody: (
+        <>
+          <p>Official LinkedIn v2 API requires member notification approval or partner Webhook setup.</p>
+          <ol>
+            <li>Create an app in the <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noreferrer" style={{color:'var(--accent)',textDecoration:'underline'}}>LinkedIn Developer Portal</a>.</li>
+            <li>Generate an OAuth 2.0 Access Token under <b>OAuth 2.0 Tools</b>.</li>
+            <li>Set Webhook receiver URL in your LinkedIn Developer App settings.</li>
+          </ol>
+          <div className="wiz-code-box">
+            <span>Webhook URL: {webhookBase}/api/integrations/webhooks/linkedin</span>
+          </div>
+        </>
+      ),
+      tokenLabel: 'LinkedIn Access Token (OAuth 2.0)',
+      tokenPlaceholder: 'AQVxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      tokenHint: 'Generated from LinkedIn Developer Portal under OAuth 2.0 Tools.',
+    },
+    whatsapp: {
+      title: 'Connect Meta WhatsApp Business',
+      icon: 'whatsapp',
+      accountLabel: 'WhatsApp Phone Number (with Country Code)',
+      accountPlaceholder: 'e.g. +91 7975727428',
+      guideTitle: 'Meta WhatsApp Cloud API Webhook Setup',
+      guideBody: (
+        <>
+          <p>Meta pushes inbound WhatsApp messages in real-time via signed HTTP Webhooks.</p>
+          <ol>
+            <li>Open <a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer" style={{color:'var(--accent)',textDecoration:'underline'}}>Meta for Developers</a> and open your WhatsApp Business App.</li>
+            <li>Under <b>WhatsApp &gt; API Setup</b>, copy your Access Token and Phone Number ID.</li>
+            <li>Set Webhook URL to the address below with verify token <code>notifyx-verify</code>.</li>
+          </ol>
+          <div className="wiz-code-box">
+            <span>Webhook URL: {webhookBase}/api/integrations/webhooks/whatsapp</span>
+          </div>
+          <div className="wiz-code-box" style={{marginTop:4}}>
+            <span>Verify Token: notifyx-verify</span>
+          </div>
+        </>
+      ),
+      tokenLabel: 'Meta WhatsApp Access Token',
+      tokenPlaceholder: 'EAAGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      tokenHint: 'Permanent System User Token or Temporary Access Token from Meta Developer Console.',
+      phoneIdLabel: 'WhatsApp Phone Number ID',
+      phoneIdPlaceholder: 'e.g. 100654321098765',
+      phoneIdHint: 'Found in Meta Developer Console under WhatsApp > API Setup.',
+    },
+  };
+
+  const cfg = configs[provider] || configs.github;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    let cleanHandle = accountName.trim();
+    if (cleanHandle.includes('github.com/')) cleanHandle = cleanHandle.split('github.com/')[1].replace(/\/$/, '');
+    if (cleanHandle.includes('linkedin.com/in/')) cleanHandle = cleanHandle.split('linkedin.com/in/')[1].replace(/\/$/, '');
+
+    if (!cleanHandle) {
+      return setError(`${cfg.accountLabel} is required`);
+    }
+    setSaving(true);
+    try {
+      await onSave(provider, true, cleanHandle, { accessToken: accessToken.trim(), phoneId: phoneId.trim() });
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Failed to save integration setup');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="wiz-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="wiz-card">
+        <div className="wiz-header">
+          <div className="wiz-brand">
+            <div className="wiz-icon-box">
+              <Icon name={cfg.icon} size={18}/>
+            </div>
+            <div>
+              <h3 className="wiz-title">{cfg.title}</h3>
+              <div className="wiz-sub">Configure real-time event pipeline &amp; credentials</div>
+            </div>
+          </div>
+          <button type="button" className="wiz-close" onClick={onClose}>×</button>
+        </div>
+
+        <form onSubmit={submit}>
+          <div className="wiz-body">
+            <div className="wiz-guide-box">
+              <h4><Icon name="spark" size={13}/> {cfg.guideTitle}</h4>
+              {cfg.guideBody}
+            </div>
+
+            <div className="wiz-field">
+              <label>{cfg.accountLabel}</label>
+              <input
+                type="text"
+                placeholder={cfg.accountPlaceholder}
+                value={accountName}
+                onChange={e => setAccountName(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+
+            {cfg.tokenLabel && (
+              <div className="wiz-field">
+                <label>{cfg.tokenLabel}</label>
+                <input
+                  type="password"
+                  placeholder={currentData?.hasToken ? "•••••••••••• (Leave blank to keep current token)" : cfg.tokenPlaceholder}
+                  value={accessToken}
+                  onChange={e => setAccessToken(e.target.value)}
+                  autoComplete="off"
+                />
+                <span className="hint">
+                  {currentData?.hasToken ? (
+                    <span style={{color:'var(--green)',fontWeight:500}}>✓ Access Token configured securely in backend. Enter new token to update.</span>
+                  ) : cfg.tokenHint}
+                </span>
+              </div>
+            )}
+
+            {cfg.phoneIdLabel && (
+              <div className="wiz-field">
+                <label>{cfg.phoneIdLabel}</label>
+                <input
+                  type="text"
+                  placeholder={currentData?.hasPhoneId ? "•••••••• (Leave blank to keep current Phone ID)" : cfg.phoneIdPlaceholder}
+                  value={phoneId}
+                  onChange={e => setPhoneId(e.target.value)}
+                  autoComplete="off"
+                />
+                <span className="hint">
+                  {currentData?.hasPhoneId ? (
+                    <span style={{color:'var(--green)',fontWeight:500}}>✓ Phone ID configured securely in backend. Enter new Phone ID to update.</span>
+                  ) : cfg.phoneIdHint}
+                </span>
+              </div>
+            )}
+
+            {error && <div className="login-error" style={{margin:0}}>{error}</div>}
+          </div>
+
+          <div className="wiz-footer">
+            <button type="button" className="btn ghost sm" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn primary sm" disabled={saving}>
+              {saving ? 'Connecting…' : 'Save & Connect'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // ─── Settings (with Social & Productivity Integrations) ─────────────────────
 const Settings = () => {
   const [prefs,        setPrefs]        = React.useState(DEFAULT_PREFS);
   const [section,      setSection]      = React.useState('notifications');
   const [saving,       setSaving]       = React.useState(false);
   const [toast,        setToast]        = React.useState(null);
+  const [activeWizard, setActiveWizard] = React.useState(null);
   const [integrations, setIntegrations] = React.useState({
     github:   { connected: false, username: '' },
     gmail:    { connected: false, email: '' },
@@ -765,30 +982,27 @@ const Settings = () => {
     setPrefs(p => ({...p, [key]: {...p[key], channels: {...p[key].channels, [ch]: !p[key].channels[ch]}}}));
   };
 
-  const handleToggleIntegration = async (provider, currentStatus, defaultAccount) => {
-    const nextStatus = !currentStatus;
-    const promptMsgs = {
-      github: 'Enter your GitHub username or profile URL (e.g. Anup171):',
-      gmail: 'Enter your Gmail email address (e.g. anupbhandarkar171@gmail.com):',
-      linkedin: 'Enter your LinkedIn handle or profile URL (e.g. anup-bhandarkar):',
-      whatsapp: 'Enter your WhatsApp mobile phone number with country code (e.g. +91 9876543210):',
-    };
-    let input = nextStatus ? (prompt(promptMsgs[provider] || `Enter your ${provider} details:`, defaultAccount || '') || '') : '';
-    if (nextStatus && input) {
-      input = input.trim();
-      if (input.includes('github.com/')) input = input.split('github.com/')[1].replace(/\/$/, '');
-      if (input.includes('linkedin.com/in/')) input = input.split('linkedin.com/in/')[1].replace(/\/$/, '');
-    }
-    const accountName = input || (nextStatus ? 'connected_account' : '');
+  const handleOpenWizard = (provider) => {
+    setActiveWizard(provider);
+  };
+
+  const handleDisconnect = async (provider) => {
     try {
-      const updated = await window.NTFX_AUTH.toggleIntegration(provider, nextStatus, accountName);
+      const updated = await window.NTFX_AUTH.toggleIntegration(provider, false, '');
       setIntegrations(updated);
-      setToast(`${provider.toUpperCase()} ${nextStatus ? 'connected (' + accountName + ')' : 'disconnected'}`);
+      setToast(`${provider.toUpperCase()} disconnected`);
       setTimeout(() => setToast(null), 2200);
     } catch (err) {
       setToast(`Integration error: ${err.message}`);
       setTimeout(() => setToast(null), 3000);
     }
+  };
+
+  const handleSaveWizard = async (provider, connected, accountName, credentials) => {
+    const updated = await window.NTFX_AUTH.toggleIntegration(provider, connected, accountName, credentials);
+    setIntegrations(updated);
+    setToast(`${provider.toUpperCase()} connected (@${accountName})`);
+    setTimeout(() => setToast(null), 2500);
   };
 
   const save = async () => {
@@ -827,6 +1041,14 @@ const Settings = () => {
 
   return (
     <div className="page">
+      {activeWizard && (
+        <ConnectWizardModal
+          provider={activeWizard}
+          currentData={integrations?.[activeWizard]}
+          onClose={() => setActiveWizard(null)}
+          onSave={handleSaveWizard}
+        />
+      )}
       <div className="page-header">
         <div>
           <div className="eyebrow">{window.NTFX_AUTH.getUserId() || 'user'}@notifyx.dev</div>
@@ -938,10 +1160,25 @@ const Settings = () => {
                           <div className="pref-desc">{item.desc}</div>
                         </div>
                       </div>
-                      <button className={`btn sm ${isConn ? 'ghost' : 'primary'}`} onClick={() => handleToggleIntegration(item.key, isConn, item.handle)}>
-                        <Icon name={isConn ? 'check' : 'plus'} size={11}/>
-                        <span>{isConn ? 'Connected' : 'Connect'}</span>
-                      </button>
+                      <div className="row" style={{gap:8}}>
+                        {isConn ? (
+                          <>
+                            <button className="btn sm ghost" onClick={() => handleOpenWizard(item.key)} title="Configure API credentials & Webhooks">
+                              <Icon name="settings" size={11}/>
+                              <span>Configure</span>
+                            </button>
+                            <button className="btn sm ghost" onClick={() => handleDisconnect(item.key)}>
+                              <Icon name="x" size={11}/>
+                              <span>Disconnect</span>
+                            </button>
+                          </>
+                        ) : (
+                          <button className="btn sm primary" onClick={() => handleOpenWizard(item.key)}>
+                            <Icon name="plus" size={11}/>
+                            <span>Connect</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

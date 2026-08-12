@@ -11,7 +11,7 @@ const { initSocket } = require('./socket/socketServer');
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 app.use('/api/auth', require('./routes/auth'));

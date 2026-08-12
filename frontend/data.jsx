@@ -13,34 +13,28 @@ const clearAuth = () => {
 };
 
 const ensureToken = async () => {
-  if (getToken()) return getToken();
-  try {
-    const res = await fetch(`${API_BASE}/api/auth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: 'user_alice', secret: 'notifyx-demo' }),
-    });
-    const d = await res.json();
-    if (d.token) {
-      setToken(d.token);
-      setUserId('user_alice');
-      return d.token;
-    }
-  } catch {}
-  return null;
+  return getToken();
 };
 
 const apiFetch = async (path, opts = {}, retryCount = 0) => {
   let token = await ensureToken();
-  const resp = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...opts.headers,
-    },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
+  let resp;
+  try {
+    resp = await fetch(`${API_BASE}${path}`, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...opts.headers,
+      },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message.toLowerCase().includes('fetch')) {
+      throw new Error(`Server connection error. Please verify the API server is running on ${API_BASE}`);
+    }
+    throw err;
+  }
 
   if (resp.status === 401 && retryCount < 1) {
     clearAuth();
@@ -81,10 +75,10 @@ const getIntegrations = async () => {
   return apiFetch('/api/users/integrations');
 };
 
-const toggleIntegration = async (provider, connected, accountName) => {
+const toggleIntegration = async (provider, connected, accountName, credentials = {}) => {
   return apiFetch('/api/users/integrations/toggle', {
     method: 'POST',
-    body: { provider, connected, accountName },
+    body: { provider, connected, accountName, ...credentials },
   });
 };
 

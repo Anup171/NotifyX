@@ -331,9 +331,8 @@ const App = () => {
           </div>
           <div className="topbar-right">
             <button className="icon-btn" title="Help / Onboarding" onClick={() => setOnboarding(true)}><Icon name="help" size={14}/></button>
-            <button className="icon-btn" title="Notifications" style={{position:'relative'}} onClick={() => go('notifications')}>
+            <button className="icon-btn" title="Notifications" onClick={() => go('notifications')}>
               <Icon name="bell" size={14}/>
-              {unread > 0 && <span className="bell-badge">{unread > 99 ? '99+' : unread}</span>}
             </button>
             <div className="row" style={{gap:8,marginLeft:6,paddingLeft:10,borderLeft:'1px solid var(--border)',cursor:'pointer'}} onClick={() => go('settings')}>
               <div style={{width:26,height:26,borderRadius:'50%',background:'oklch(0.55 0.10 30)',color:'white',display:'grid',placeItems:'center',fontSize:11,fontWeight:600}}>
