@@ -10,12 +10,12 @@ const { DEFAULT_PREFERENCES } = require('../../../shared/constants');
 const router = express.Router();
 
 const schema = Joi.object({
-  recipientId:    Joi.string().required(),
-  senderId:       Joi.string().required(),
-  type:           Joi.string().valid('like', 'comment', 'follow', 'mention', 'system').required(),
-  payload:        Joi.object().default({}),
+  recipientId: Joi.string().required(),
+  senderId: Joi.string().required(),
+  type: Joi.string().valid('like', 'comment', 'follow', 'mention', 'system').required(),
+  payload: Joi.object().default({}),
   idempotencyKey: Joi.string().required(),
-  priority:       Joi.number().min(1).max(10).default(5),
+  priority: Joi.number().min(1).max(10).default(5),
 });
 
 const getUserPreferences = async (userId) => {
@@ -60,7 +60,7 @@ const dispatch = async (data) => {
   }
 
   // Best-effort metrics (unread counts fetched from DB, not cached in Redis)
-  redis.incr('metrics:success').catch(() => {});
+  redis.incr('metrics:success').catch(() => { });
 
   if (online) {
     const io = getIO();
@@ -71,6 +71,11 @@ const dispatch = async (data) => {
 // POST /api/notify — accept a notification, dispatch async via setImmediate
 router.post('/', verifyJWT, globalRateLimiter, perUserRateLimiter, async (req, res, next) => {
   try {
+    // Accept idempotencyKey from Idempotency-Key header or request body
+    if (req.headers['idempotency-key'] && !req.body.idempotencyKey) {
+      req.body.idempotencyKey = req.headers['idempotency-key'];
+    }
+
     const { error, value } = schema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
@@ -85,7 +90,7 @@ router.post('/', verifyJWT, globalRateLimiter, perUserRateLimiter, async (req, r
     setImmediate(() => {
       dispatch(value).catch((err) => {
         console.error('[Notify] dispatch failed:', err.message);
-        redis.incr('metrics:failed').catch(() => {});
+        redis.incr('metrics:failed').catch(() => { });
       });
     });
   } catch (err) {
@@ -94,3 +99,6 @@ router.post('/', verifyJWT, globalRateLimiter, perUserRateLimiter, async (req, r
 });
 
 module.exports = router;
+module.exports.getUserPreferences = getUserPreferences;
+module.exports.inQuietHours = inQuietHours;
+

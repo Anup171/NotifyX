@@ -12,22 +12,23 @@
 const { User, Notification } = require('../models');
 const { redis } = require('../config/redis');
 const { getIO, isOnline } = require('../socket/socketServer');
+const { getUserPreferences, inQuietHours } = require('../routes/notify');
 
 // ─── GitHub Event → Notification mapper ──────────────────────────────────────
 
 const GITHUB_EVENT_MAP = {
-  PushEvent:              (e) => `Pushed ${e.payload?.commits?.length || 0} commit(s) to ${e.repo?.name}`,
-  PullRequestEvent:       (e) => `${e.payload?.action} PR #${e.payload?.pull_request?.number} on ${e.repo?.name}`,
-  IssuesEvent:            (e) => `${e.payload?.action} issue #${e.payload?.issue?.number} on ${e.repo?.name}`,
-  IssueCommentEvent:      (e) => `Commented on issue #${e.payload?.issue?.number} in ${e.repo?.name}`,
-  WatchEvent:             (e) => `Starred ${e.repo?.name}`,
-  ForkEvent:              (e) => `Forked ${e.repo?.name}`,
-  CreateEvent:            (e) => `Created ${e.payload?.ref_type}${e.payload?.ref ? ` "${e.payload.ref}"` : ''} on ${e.repo?.name}`,
-  DeleteEvent:            (e) => `Deleted ${e.payload?.ref_type} "${e.payload?.ref}" on ${e.repo?.name}`,
-  ReleaseEvent:           (e) => `${e.payload?.action} release "${e.payload?.release?.tag_name}" on ${e.repo?.name}`,
+  PushEvent: (e) => `Pushed ${e.payload?.commits?.length || 0} commit(s) to ${e.repo?.name}`,
+  PullRequestEvent: (e) => `${e.payload?.action} PR #${e.payload?.pull_request?.number} on ${e.repo?.name}`,
+  IssuesEvent: (e) => `${e.payload?.action} issue #${e.payload?.issue?.number} on ${e.repo?.name}`,
+  IssueCommentEvent: (e) => `Commented on issue #${e.payload?.issue?.number} in ${e.repo?.name}`,
+  WatchEvent: (e) => `Starred ${e.repo?.name}`,
+  ForkEvent: (e) => `Forked ${e.repo?.name}`,
+  CreateEvent: (e) => `Created ${e.payload?.ref_type}${e.payload?.ref ? ` "${e.payload.ref}"` : ''} on ${e.repo?.name}`,
+  DeleteEvent: (e) => `Deleted ${e.payload?.ref_type} "${e.payload?.ref}" on ${e.repo?.name}`,
+  ReleaseEvent: (e) => `${e.payload?.action} release "${e.payload?.release?.tag_name}" on ${e.repo?.name}`,
   PullRequestReviewEvent: (e) => `${e.payload?.action} review on PR #${e.payload?.pull_request?.number} in ${e.repo?.name}`,
-  PublicEvent:            (e) => `Made ${e.repo?.name} public`,
-  MemberEvent:            (e) => `${e.payload?.action} ${e.payload?.member?.login} on ${e.repo?.name}`,
+  PublicEvent: (e) => `Made ${e.repo?.name} public`,
+  MemberEvent: (e) => `${e.payload?.action} ${e.payload?.member?.login} on ${e.repo?.name}`,
 };
 
 const mapGitHubEvent = (event) => {
@@ -40,6 +41,18 @@ const mapGitHubEvent = (event) => {
 
 const saveAndEmit = async (userId, senderId, message, source, eventType, extraPayload = {}, idempotencyKey) => {
   const io = getIO();
+
+  // Enforce user preferences before creating notification
+  try {
+    const prefs = await getUserPreferences(userId);
+    if (!prefs.inApp) return null;
+    if (prefs.mutedTypes?.includes('system')) return null;
+    if (inQuietHours(prefs.quietHours)) return null;
+  } catch (err) {
+    console.error(`[IntegrationPoller] Preference check error for ${userId}: ${err.message}`);
+    // Proceed with notification delivery if preference check fails
+  }
+
   try {
     const notif = await Notification.create({
       recipientId: userId,
@@ -59,7 +72,7 @@ const saveAndEmit = async (userId, senderId, message, source, eventType, extraPa
       io.to(userId).emit('notification', notif);
     }
 
-    redis.incr('metrics:success').catch(() => {});
+    redis.incr('metrics:success').catch(() => { });
     return notif;
   } catch (err) {
     if (err.code === 11000) return null; // duplicate idempotencyKey
@@ -70,7 +83,17 @@ const saveAndEmit = async (userId, senderId, message, source, eventType, extraPa
 
 // ─── Poll GitHub for a single user ──────────────────────────────────────────
 
-const pollGitHub = async (userId, username) => {
+const pollGitHub = async (userId, username, userAccessToken) => {
+  // Check if this user is in rate-limit back-off
+  const backoffKey = `integration:github:backoff:${userId}`;
+  try {
+    const backoff = await redis.get(backoffKey);
+    if (backoff) {
+      console.log(`[IntegrationPoller] GitHub back-off active for ${username}, skipping`);
+      return 0;
+    }
+  } catch {}
+
   const cacheKey = `integration:github:lastEventId:${userId}`;
   let lastEventId;
   try {
@@ -81,16 +104,25 @@ const pollGitHub = async (userId, username) => {
 
   let events;
   try {
+    const headers = {
+      'User-Agent': 'NotifyX-App',
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    // Use GitHub PAT when available for higher rate limits (5000 req/hr vs 60)
+    const token = userAccessToken || process.env.GITHUB_TOKEN;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const resp = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/events?per_page=30`, {
-      headers: {
-        'User-Agent': 'NotifyX-App',
-        'Accept': 'application/vnd.github.v3+json',
-      },
+      headers,
     });
 
     if (!resp.ok) {
       if (resp.status === 403 || resp.status === 429) {
-        console.warn(`[IntegrationPoller] GitHub rate limit for ${username}, skipping`);
+        console.warn(`[IntegrationPoller] GitHub rate limit for ${username}, backing off 10 minutes`);
+        // Back off for 10 minutes (2 poll cycles at 5-min interval)
+        try { await redis.set(backoffKey, '1', 'EX', 600); } catch {}
         return 0;
       }
       console.warn(`[IntegrationPoller] GitHub API ${resp.status} for ${username}`);
@@ -143,7 +175,7 @@ const pollGitHub = async (userId, username) => {
   if (events[0]?.id) {
     try {
       await redis.set(cacheKey, events[0].id, 'EX', 86400 * 7);
-    } catch {}
+    } catch { }
   }
 
   return created;
@@ -204,7 +236,7 @@ const pollLinkedIn = async (userId, name, userAccessToken) => {
 
 // ─── Main polling loop ──────────────────────────────────────────────────────
 
-const POLL_INTERVAL_MS = 60_000; // 60 seconds
+const POLL_INTERVAL_MS = 300_000; // 5 minutes — stays within GitHub's 60 req/hr unauthenticated limit
 let pollTimer = null;
 
 const pollAll = async () => {
@@ -220,9 +252,9 @@ const pollAll = async () => {
     if (users.length === 0) return;
 
     for (const user of users) {
-      // GitHub (Real unauthenticated REST API)
+      // GitHub (Real REST API — uses PAT if available for higher limits)
       if (user.integrations?.github?.connected && user.integrations.github.username) {
-        const count = await pollGitHub(user.userId, user.integrations.github.username);
+        const count = await pollGitHub(user.userId, user.integrations.github.username, user.integrations.github.accessToken);
         if (count > 0) {
           console.log(`[IntegrationPoller] Created ${count} GitHub notification(s) for ${user.userId}`);
         }
@@ -266,4 +298,3 @@ const stopPoller = () => {
 };
 
 module.exports = { startPoller, stopPoller, pollAll, pollGitHub, pollGmail, pollLinkedIn };
-
