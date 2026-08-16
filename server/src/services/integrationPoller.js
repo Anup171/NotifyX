@@ -198,13 +198,36 @@ const pollGmail = async (userId, email, userAccessToken) => {
     let created = 0;
 
     for (const msg of messages) {
+      let subject = 'No Subject';
+      let from = 'Unknown Sender';
+      let snippet = '';
+
+      try {
+        const detailResp = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (detailResp.ok) {
+          const detail = await detailResp.json();
+          snippet = detail.snippet || '';
+          const headers = detail.payload?.headers || [];
+          const subjectHeader = headers.find(h => h.name.toLowerCase() === 'subject');
+          const fromHeader = headers.find(h => h.name.toLowerCase() === 'from');
+          if (subjectHeader) subject = subjectHeader.value;
+          if (fromHeader) from = fromHeader.value;
+        }
+      } catch (err) {
+        console.error(`[IntegrationPoller] Gmail detail fetch error: ${err.message}`);
+      }
+
+      const message = `Email from ${from}: "${subject}"`;
+
       const saved = await saveAndEmit(
         userId,
         `gmail:${email}`,
-        `New email message #${msg.id}`,
+        message,
         'gmail',
         'email_received',
-        { email, messageId: msg.id },
+        { email, messageId: msg.id, subject, from, snippet },
         `gmail_${msg.id}_${userId}`
       );
       if (saved) created++;
