@@ -11,8 +11,7 @@
 
 const { User, Notification } = require('../models');
 const { redis } = require('../config/redis');
-const { getIO, isOnline } = require('../socket/socketServer');
-const { getUserPreferences, inQuietHours } = require('../routes/notify');
+const { deliverNotification } = require('./notificationDelivery');
 
 // ─── GitHub Event → Notification mapper ──────────────────────────────────────
 
@@ -40,21 +39,8 @@ const mapGitHubEvent = (event) => {
 // ─── Helper: create notification & emit via Socket.io ───────────────────────
 
 const saveAndEmit = async (userId, senderId, message, source, eventType, extraPayload = {}, idempotencyKey) => {
-  const io = getIO();
-
-  // Enforce user preferences before creating notification
   try {
-    const prefs = await getUserPreferences(userId);
-    if (!prefs.inApp) return null;
-    if (prefs.mutedTypes?.includes('system')) return null;
-    if (inQuietHours(prefs.quietHours)) return null;
-  } catch (err) {
-    console.error(`[IntegrationPoller] Preference check error for ${userId}: ${err.message}`);
-    // Proceed with notification delivery if preference check fails
-  }
-
-  try {
-    const notif = await Notification.create({
+    return await deliverNotification({
       recipientId: userId,
       senderId,
       type: 'system',
@@ -65,17 +51,8 @@ const saveAndEmit = async (userId, senderId, message, source, eventType, extraPa
         ...extraPayload,
       },
       idempotencyKey,
-      delivered: isOnline(userId),
     });
-
-    if (io && isOnline(userId)) {
-      io.to(userId).emit('notification', notif);
-    }
-
-    redis.incr('metrics:success').catch(() => { });
-    return notif;
   } catch (err) {
-    if (err.code === 11000) return null; // duplicate idempotencyKey
     console.error(`[IntegrationPoller] Notification create error (${source}): ${err.message}`);
     return null;
   }
@@ -198,6 +175,14 @@ const pollGmail = async (userId, email, userAccessToken) => {
     let created = 0;
 
     for (const msg of messages) {
+      const idempotencyKey = `gmail_${msg.id}_${userId}`;
+      try {
+        const exists = await Notification.exists({ idempotencyKey });
+        if (exists) continue;
+      } catch (err) {
+        console.error(`[IntegrationPoller] Gmail idempotency check error: ${err.message}`);
+      }
+
       let subject = 'No Subject';
       let from = 'Unknown Sender';
       let snippet = '';
@@ -228,7 +213,7 @@ const pollGmail = async (userId, email, userAccessToken) => {
         'gmail',
         'email_received',
         { email, messageId: msg.id, subject, from, snippet },
-        `gmail_${msg.id}_${userId}`
+        idempotencyKey
       );
       if (saved) created++;
     }
@@ -274,30 +259,48 @@ const pollAll = async () => {
 
     if (users.length === 0) return;
 
-    for (const user of users) {
-      // GitHub (Real REST API — uses PAT if available for higher limits)
-      if (user.integrations?.github?.connected && user.integrations.github.username) {
-        const count = await pollGitHub(user.userId, user.integrations.github.username, user.integrations.github.accessToken);
-        if (count > 0) {
-          console.log(`[IntegrationPoller] Created ${count} GitHub notification(s) for ${user.userId}`);
-        }
-      }
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      const batch = users.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(
+        batch.map(async (user) => {
+          // GitHub (Real REST API — uses PAT if available for higher limits)
+          if (user.integrations?.github?.connected && user.integrations.github.username) {
+            try {
+              const count = await pollGitHub(user.userId, user.integrations.github.username, user.integrations.github.accessToken);
+              if (count > 0) {
+                console.log(`[IntegrationPoller] Created ${count} GitHub notification(s) for ${user.userId}`);
+              }
+            } catch (err) {
+              console.error(`[IntegrationPoller] GitHub poll error for ${user.userId}: ${err.message}`);
+            }
+          }
 
-      // Gmail (Real OAuth API if token set)
-      if (user.integrations?.gmail?.connected && user.integrations.gmail.email) {
-        const count = await pollGmail(user.userId, user.integrations.gmail.email, user.integrations.gmail.accessToken);
-        if (count > 0) {
-          console.log(`[IntegrationPoller] Created ${count} Gmail notification(s) for ${user.userId}`);
-        }
-      }
+          // Gmail (Real OAuth API if token set)
+          if (user.integrations?.gmail?.connected && user.integrations.gmail.email) {
+            try {
+              const count = await pollGmail(user.userId, user.integrations.gmail.email, user.integrations.gmail.accessToken);
+              if (count > 0) {
+                console.log(`[IntegrationPoller] Created ${count} Gmail notification(s) for ${user.userId}`);
+              }
+            } catch (err) {
+              console.error(`[IntegrationPoller] Gmail poll error for ${user.userId}: ${err.message}`);
+            }
+          }
 
-      // LinkedIn (Real OAuth API if token set)
-      if (user.integrations?.linkedin?.connected && user.integrations.linkedin.name) {
-        const count = await pollLinkedIn(user.userId, user.integrations.linkedin.name, user.integrations.linkedin.accessToken);
-        if (count > 0) {
-          console.log(`[IntegrationPoller] Created ${count} LinkedIn notification(s) for ${user.userId}`);
-        }
-      }
+          // LinkedIn (Real OAuth API if token set)
+          if (user.integrations?.linkedin?.connected && user.integrations.linkedin.name) {
+            try {
+              const count = await pollLinkedIn(user.userId, user.integrations.linkedin.name, user.integrations.linkedin.accessToken);
+              if (count > 0) {
+                console.log(`[IntegrationPoller] Created ${count} LinkedIn notification(s) for ${user.userId}`);
+              }
+            } catch (err) {
+              console.error(`[IntegrationPoller] LinkedIn poll error for ${user.userId}: ${err.message}`);
+            }
+          }
+        })
+      );
     }
   } catch (err) {
     console.error(`[IntegrationPoller] Poll cycle error: ${err.message}`);

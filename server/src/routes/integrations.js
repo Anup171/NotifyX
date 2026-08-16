@@ -2,48 +2,14 @@ const express = require('express');
 const crypto = require('crypto');
 const { User, Notification } = require('../models');
 const { verifyJWT } = require('../middleware/auth');
-const { getIO, isOnline } = require('../socket/socketServer');
-const { redis } = require('../config/redis');
-const { getUserPreferences, inQuietHours } = require('./notify');
+const { deliverNotification } = require('../services/notificationDelivery');
 
 const router = express.Router();
 
 // ─── Helper: create a notification and deliver via Socket.io ────────────────
 
 const createAndDeliver = async (recipientId, senderId, type, payload, idempotencyKey) => {
-  // Enforce user preferences before creating notification
-  try {
-    const prefs = await getUserPreferences(recipientId);
-    if (!prefs.inApp) return null;
-    if (prefs.mutedTypes?.includes(type)) return null;
-    if (inQuietHours(prefs.quietHours)) return null;
-  } catch (err) {
-    console.error(`[Integrations] Preference check error for ${recipientId}: ${err.message}`);
-    // Proceed with notification delivery if preference check fails
-  }
-
-  try {
-    const notif = await Notification.create({
-      recipientId,
-      senderId,
-      type,
-      payload,
-      idempotencyKey,
-      delivered: isOnline(recipientId),
-    });
-
-    redis.incr('metrics:success').catch(() => { });
-
-    const io = getIO();
-    if (io && isOnline(recipientId)) {
-      io.to(recipientId).emit('notification', notif);
-    }
-
-    return notif;
-  } catch (err) {
-    if (err.code === 11000) return null; // Duplicate idempotencyKey
-    throw err;
-  }
+  return deliverNotification({ recipientId, senderId, type, payload, idempotencyKey });
 };
 
 // ─── GET /api/integrations/status ───────────────────────────────────────────
