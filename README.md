@@ -109,6 +109,9 @@ NotifyX/
 |       |   |-- preferences.js  # GET/PUT /api/users/preferences
 |       |   |-- metrics.js      # GET /api/metrics
 |       |   `-- apikeys.js      # POST/GET/DELETE /api/keys
+|       |-- services/
+|       |   |-- integrationPoller.js   # Background poller for connected integrations
+|       |   `-- notificationDelivery.js # Shared validation, save & socket emission logic
 |       `-- socket/
 |           `-- socketServer.js # Auth, rooms, offline sync, exports getIO/isOnline
 |
