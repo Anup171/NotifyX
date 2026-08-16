@@ -1311,10 +1311,8 @@
             liked your post'</span> },</div>
         <div class="line"> }),</div>
         <div class="line">})</div>
-        <div class="line" style="margin-top:12px;"><span class="cc">// &rarr; 202 { status: 'queued', jobId: 'bull:...'
-            }</span></div>
-        <div class="line" style="margin-top:4px;"><span class="cc">// worker saves to MongoDB, pushes via
-            Socket.io</span></div>
+        <div class="line" style="margin-top:12px;"><span class="cc">// &rarr; 202 { status: 'accepted' }</span></div>
+        <div class="line" style="margin-top:4px;"><span class="cc">// dispatcher saves to MongoDB, pushes via Socket.io</span></div>
       </div>
     </div>
   </div>
@@ -1326,8 +1324,8 @@
     <div class="section-eyebrow">Architecture</div>
     <div class="section-title">How a notification travels</div>
     <p class="section-desc">
-      API server and worker are separate Node.js processes. Redis is the only bridge —
-      no shared memory, no coupling.
+      The API server processes requests and dispatches notifications asynchronously in the same process.
+      Redis handles caching, metrics, and idempotency.
     </p>
 
     <div class="pipeline">
@@ -1434,7 +1432,7 @@
         </div>
         <h3>Two-layer idempotency</h3>
         <p>
-          API gate uses Redis <code>SETNX</code> with 24-hour TTL. Worker falls back to
+          API boundary uses Redis <code>SETNX</code> with 24-hour TTL. Dispatcher falls back to
           a MongoDB sparse unique index. Sending the same request twice is safe — the
           second returns 409 with no side effects.
         </p>
@@ -1448,7 +1446,7 @@
         </div>
         <h3>Offline sync on reconnect</h3>
         <p>
-          Worker checks <code>online:{userId}</code> in Redis. Offline users accumulate
+          Dispatcher checks online presence via Socket.io rooms. Offline users accumulate
           notifications with <code>delivered: false</code>. Socket.io flushes them the
           moment the user reconnects.
         </p>

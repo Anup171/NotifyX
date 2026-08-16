@@ -16,6 +16,12 @@ module.exports = (mongoose) => {
       },
       mutedTypes: { type: [String], default: [] },
     },
+    integrations: {
+      github:   { connected: { type: Boolean, default: false }, username: { type: String, default: '' }, accessToken: { type: String, default: '' }, updatedAt: Date },
+      gmail:    { connected: { type: Boolean, default: false }, email: { type: String, default: '' }, accessToken: { type: String, default: '' }, updatedAt: Date },
+      linkedin: { connected: { type: Boolean, default: false }, name: { type: String, default: '' }, accessToken: { type: String, default: '' }, updatedAt: Date },
+      whatsapp: { connected: { type: Boolean, default: false }, phone: { type: String, default: '' }, accessToken: { type: String, default: '' }, phoneId: { type: String, default: '' }, updatedAt: Date },
+    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   });

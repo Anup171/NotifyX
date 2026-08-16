@@ -4,73 +4,37 @@ const { Notification, User } = require('../models');
 const { redis } = require('../config/redis');
 const { verifyJWT } = require('../middleware/auth');
 const { globalRateLimiter, perUserRateLimiter } = require('../middleware/rateLimiter');
-const { getIO, isOnline } = require('../socket/socketServer');
-const { DEFAULT_PREFERENCES } = require('../../../shared/constants');
+const { getUserPreferences, inQuietHours, deliverNotification } = require('../services/notificationDelivery');
 
 const router = express.Router();
 
 const schema = Joi.object({
-  recipientId:    Joi.string().required(),
-  senderId:       Joi.string().required(),
-  type:           Joi.string().valid('like', 'comment', 'follow', 'mention').required(),
-  payload:        Joi.object().default({}),
+  recipientId: Joi.string().required(),
+  senderId: Joi.string().required(),
+  type: Joi.string().valid('like', 'comment', 'follow', 'mention', 'system').required(),
+  payload: Joi.object().default({}),
   idempotencyKey: Joi.string().required(),
-  priority:       Joi.number().min(1).max(10).default(5),
+  priority: Joi.number().min(1).max(10).default(5),
 });
-
-const getUserPreferences = async (userId) => {
-  const key = `prefs:${userId}`;
-  const cached = await redis.get(key);
-  if (cached) return JSON.parse(cached);
-  const user = await User.findOne({ userId }).select('preferences').lean();
-  const prefs = user?.preferences || DEFAULT_PREFERENCES;
-  await redis.set(key, JSON.stringify(prefs), 'EX', 300);
-  return prefs;
-};
-
-const inQuietHours = (quietHours) => {
-  if (!quietHours?.enabled) return false;
-  const hour = new Date().getHours();
-  const { startHour, endHour } = quietHours;
-  return startHour > endHour
-    ? hour >= startHour || hour < endHour
-    : hour >= startHour && hour < endHour;
-};
 
 const dispatch = async (data) => {
   const { recipientId, senderId, type, payload, idempotencyKey } = data;
-
-  const prefs = await getUserPreferences(recipientId);
-  if (!prefs.inApp) return;
-  if (prefs.mutedTypes?.includes(type)) return;
-  if (inQuietHours(prefs.quietHours)) return;
-
-  const online = isOnline(recipientId);
-
-  let notif;
   try {
-    notif = await Notification.create({
-      recipientId, senderId, type, payload, idempotencyKey,
-      delivered: online,
-    });
+    await deliverNotification({ recipientId, senderId, type, payload, idempotencyKey });
   } catch (err) {
-    // Duplicate idempotencyKey (Layer 2 via sparse unique index) — silently skip
-    if (err.code === 11000) return;
-    throw err;
-  }
-
-  // Best-effort metrics (unread counts fetched from DB, not cached in Redis)
-  redis.incr('metrics:success').catch(() => {});
-
-  if (online) {
-    const io = getIO();
-    if (io) io.to(recipientId).emit('notification', notif);
+    console.error('[Notify] dispatch failed:', err.message);
+    redis.incr('metrics:failed').catch(() => { });
   }
 };
 
 // POST /api/notify — accept a notification, dispatch async via setImmediate
 router.post('/', verifyJWT, globalRateLimiter, perUserRateLimiter, async (req, res, next) => {
   try {
+    // Accept idempotencyKey from Idempotency-Key header or request body
+    if (req.headers['idempotency-key'] && !req.body.idempotencyKey) {
+      req.body.idempotencyKey = req.headers['idempotency-key'];
+    }
+
     const { error, value } = schema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
@@ -85,7 +49,7 @@ router.post('/', verifyJWT, globalRateLimiter, perUserRateLimiter, async (req, r
     setImmediate(() => {
       dispatch(value).catch((err) => {
         console.error('[Notify] dispatch failed:', err.message);
-        redis.incr('metrics:failed').catch(() => {});
+        redis.incr('metrics:failed').catch(() => { });
       });
     });
   } catch (err) {
@@ -94,3 +58,6 @@ router.post('/', verifyJWT, globalRateLimiter, perUserRateLimiter, async (req, r
 });
 
 module.exports = router;
+module.exports.getUserPreferences = getUserPreferences;
+module.exports.inQuietHours = inQuietHours;
+

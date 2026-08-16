@@ -126,17 +126,17 @@ const LoginScreen = ({ onLogin }) => {
 
 // ─── Onboarding popup ─────────────────────────────────────────────────────────
 const STEP_ICONS = {
-  queue:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>,
-  bell:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>,
-  chart:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 5-7"/></svg>,
-  sliders: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>,
+  queue: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h10" /></svg>,
+  bell: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>,
+  chart: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 5-7" /></svg>,
+  sliders: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>,
 };
 
 const STEPS = [
-  { icon: 'queue',   cls: 'accent',  label: 'Send a notification',   desc: 'Hit the Queue tab and use the form to fire a test notification to any user ID.' },
-  { icon: 'bell',    cls: 'green',   label: 'Watch it arrive live',   desc: 'Switch to Notifications — new items appear in real-time via Socket.io without a page refresh.' },
-  { icon: 'chart',   cls: 'violet',  label: 'Track delivery metrics', desc: 'The Metrics tab shows success/failure counts and queue depth updated every 10 s.' },
-  { icon: 'sliders', cls: 'amber',   label: 'Adjust preferences',     desc: 'Settings lets each user toggle channels, enable quiet hours, and mute specific types.' },
+  { icon: 'queue', cls: 'accent', label: 'Send a notification', desc: 'Hit the Queue tab and use the form to fire a test notification to any user ID.' },
+  { icon: 'bell', cls: 'green', label: 'Watch it arrive live', desc: 'Switch to Notifications — new items appear in real-time via Socket.io without a page refresh.' },
+  { icon: 'chart', cls: 'violet', label: 'Track delivery metrics', desc: 'The Metrics tab shows success/failure counts and queue depth updated every 10 s.' },
+  { icon: 'sliders', cls: 'amber', label: 'Adjust preferences', desc: 'Settings lets each user toggle channels, enable quiet hours, and mute specific types.' },
 ];
 
 const OnboardingModal = ({ onDone }) => (
@@ -177,31 +177,41 @@ const OnboardingModal = ({ onDone }) => (
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 const NAV = [
-  { k:'dashboard',     label:'Dashboard',     icon:'home',     screen:'Overview' },
-  { k:'queue',         label:'Queue',         icon:'queue',    screen:'Queue',   badge:'47', badgeKind:'err' },
-  { k:'notifications', label:'Notifications', icon:'bell',     screen:'Inbox',   badge:'3',  badgeKind:'' },
-  { k:'metrics',       label:'Metrics',       icon:'metrics',  screen:'Metrics' },
-  { k:'apikeys',       label:'API Keys',      icon:'key',      screen:'API Keys' },
-  { k:'settings',      label:'Settings',      icon:'settings', screen:'Settings' },
+  { k: 'dashboard', label: 'Dashboard', icon: 'home', screen: 'Overview' },
+  { k: 'queue', label: 'Queue', icon: 'queue', screen: 'Queue' },
+  { k: 'notifications', label: 'Notifications', icon: 'bell', screen: 'Inbox' },
+  { k: 'metrics', label: 'Metrics', icon: 'metrics', screen: 'Metrics' },
+  { k: 'apikeys', label: 'API Keys', icon: 'key', screen: 'API Keys' },
+  { k: 'settings', label: 'Settings', icon: 'settings', screen: 'Settings' },
 ];
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 const App = () => {
-  const [authed,    setAuthed]    = React.useState(Boolean(getToken()));
-  const [route,     setRoute]     = React.useState('dashboard');
-  const [socket,    setSocket]    = React.useState(null);
-  const [unread,    setUnread]    = React.useState(0);
+  const [authed, setAuthed] = React.useState(Boolean(getToken()));
+  const [route, setRoute] = React.useState('dashboard');
+  const [socket, setSocket] = React.useState(null);
+  const [unread, setUnread] = React.useState(0);
   const [onboarding, setOnboarding] = React.useState(false);
 
-  // Hash-based routing so refreshing keeps the view
+  // Hash-based routing & global shortcuts
   React.useEffect(() => {
     const apply = () => {
       const h = (location.hash || '').replace('#', '') || 'dashboard';
       if (NAV.find(n => n.k === h)) setRoute(h);
     };
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('topbar-search-input')?.focus();
+      }
+    };
     apply();
     window.addEventListener('hashchange', apply);
-    return () => window.removeEventListener('hashchange', apply);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('hashchange', apply);
+      window.removeEventListener('keydown', onKey);
+    };
   }, []);
 
   const go = (k) => { location.hash = k; setRoute(k); };
@@ -236,24 +246,24 @@ const App = () => {
     setUnread(0);
   };
 
-  if (!authed) return <LoginScreen onLogin={handleLogin}/>;
+  if (!authed) return <LoginScreen onLogin={handleLogin} />;
 
   const current = NAV.find(n => n.k === route) || NAV[0];
-  const userId  = getUserId() || 'user';
+  const userId = getUserId() || 'user';
 
   let Screen;
   switch (route) {
-    case 'queue':         Screen = () => <Queue/>; break;
-    case 'notifications': Screen = () => <Notifications socket={socket} onUnreadChange={setUnread}/>; break;
-    case 'settings':      Screen = () => <Settings/>; break;
-    case 'metrics':       Screen = () => <Metrics/>; break;
-    case 'apikeys':       Screen = () => <ApiKeys/>; break;
-    default:              Screen = () => <Dashboard onNavigate={go}/>;
+    case 'queue': Screen = () => <Queue />; break;
+    case 'notifications': Screen = () => <Notifications socket={socket} onUnreadChange={setUnread} />; break;
+    case 'settings': Screen = () => <Settings />; break;
+    case 'metrics': Screen = () => <Metrics />; break;
+    case 'apikeys': Screen = () => <ApiKeys />; break;
+    default: Screen = () => <Dashboard onNavigate={go} />;
   }
 
   return (
     <div className="app">
-      {onboarding && <OnboardingModal onDone={dismissOnboarding}/>}
+      {onboarding && <OnboardingModal onDone={dismissOnboarding} />}
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">N</div>
@@ -267,31 +277,31 @@ const App = () => {
           return (
             <button
               key={n.k}
-              className={`nav-item ${route===n.k?'active':''}`}
+              className={`nav-item ${route === n.k ? 'active' : ''}`}
               onClick={() => go(n.k)}
             >
-              <Icon name={n.icon} size={16} className="nav-icon"/>
+              <Icon name={n.icon} size={16} className="nav-icon" />
               <span>{n.label}</span>
-              {badge && <span className={`nav-badge ${n.badgeKind||''}`}>{badge}</span>}
+              {badge && <span className={`nav-badge ${n.badgeKind || ''}`}>{badge}</span>}
             </button>
           );
         })}
 
         <div className="nav-section-label">Resources</div>
         <a className="nav-item" href="index.html">
-          <Icon name="help" size={16} className="nav-icon"/>
+          <Icon name="help" size={16} className="nav-icon" />
           <span>Docs &amp; Demo</span>
-          <Icon name="arrow-up" size={11} className="fg-faint" style={{marginLeft:'auto',transform:'rotate(45deg)'}}/>
+          <Icon name="arrow-up" size={11} className="fg-faint" style={{ marginLeft: 'auto', transform: 'rotate(45deg)' }} />
         </a>
 
         <div className="sidebar-footer">
-          <div className="avatar">{userId.slice(0,2).toUpperCase()}</div>
+          <div className="avatar">{userId.slice(0, 2).toUpperCase()}</div>
           <div className="who">
             <span>{userId}</span>
             <span>@{userId}</span>
           </div>
-          <button style={{background:'none',border:'none',cursor:'pointer',color:'var(--fg-faint)',padding:0}} onClick={handleLogout} title="Sign out">
-            <Icon name="x" size={14}/>
+          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-faint)', padding: 0 }} onClick={handleLogout} title="Sign out">
+            <Icon name="x" size={14} />
           </button>
         </div>
       </aside>
@@ -304,26 +314,36 @@ const App = () => {
             <span className="current">{current.screen}</span>
           </div>
           <div className="search">
-            <Icon name="search" size={13}/>
-            <input placeholder="Search jobs, templates, recipients…"/>
+            <Icon name="search" size={13} />
+            <input id="topbar-search-input" placeholder="Search jobs, notifications, keys… (Press ⌘K)"
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const val = e.target.value.toLowerCase();
+                  if (val.includes('key')) go('apikeys');
+                  else if (val.includes('notif') || val.includes('inbox')) go('notifications');
+                  else if (val.includes('job') || val.includes('queue')) go('queue');
+                  else if (val.includes('setting') || val.includes('pref')) go('settings');
+                  else if (val.includes('metric')) go('metrics');
+                }
+              }}
+            />
             <span className="kbd">⌘K</span>
           </div>
           <div className="topbar-right">
-            <button className="icon-btn" title="Help"><Icon name="help" size={14}/></button>
-            <button className="icon-btn" title="Notifications" style={{position:'relative'}} onClick={() => go('notifications')}>
-              <Icon name="bell" size={14}/>
-              {unread > 0 && <span className="bell-badge">{unread > 99 ? '99+' : unread}</span>}
+            <button className="icon-btn" title="Help / Onboarding" onClick={() => setOnboarding(true)}><Icon name="help" size={14} /></button>
+            <button className="icon-btn" title="Notifications" onClick={() => go('notifications')}>
+              <Icon name="bell" size={14} />
             </button>
-            <div className="row" style={{gap:8,marginLeft:6,paddingLeft:10,borderLeft:'1px solid var(--border)'}}>
-              <div style={{width:26,height:26,borderRadius:'50%',background:'oklch(0.55 0.10 30)',color:'white',display:'grid',placeItems:'center',fontSize:11,fontWeight:600}}>
-                {userId.slice(0,2).toUpperCase()}
+            <div className="row" style={{ gap: 8, marginLeft: 6, paddingLeft: 10, borderLeft: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => go('settings')}>
+              <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'oklch(0.55 0.10 30)', color: 'white', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 600 }}>
+                {userId.slice(0, 2).toUpperCase()}
               </div>
             </div>
           </div>
         </div>
 
-        <div key={route} style={{animation:'fade 180ms ease-out'}}>
-          <Screen/>
+        <div key={route} style={{ animation: 'fade 180ms ease-out' }}>
+          <Screen />
         </div>
       </main>
 
@@ -332,4 +352,4 @@ const App = () => {
   );
 };
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);

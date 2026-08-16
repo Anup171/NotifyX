@@ -56,3 +56,8 @@ coverage/
 # Runtime
 .cache/
 .tmp/
+
+# Agent configuration
+.agents/
+.gemini/
+
