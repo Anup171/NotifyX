@@ -739,7 +739,7 @@ const ConnectWizardModal = ({ provider, currentData, onClose, onSave }) => {
       title: 'Connect GitHub Integration',
       icon: 'github',
       accountLabel: 'GitHub Username or Profile Handle',
-      accountPlaceholder: 'e.g. Anup171',
+      accountPlaceholder: 'e.g. User123',
       guideTitle: 'GitHub Public REST API & Webhooks',
       guideBody: (
         <>
@@ -757,7 +757,7 @@ const ConnectWizardModal = ({ provider, currentData, onClose, onSave }) => {
       title: 'Connect Gmail Account',
       icon: 'mail',
       accountLabel: 'Gmail Email Address',
-      accountPlaceholder: 'e.g. anupbhandarkar171@gmail.com',
+      accountPlaceholder: 'e.g. user123@gmail.com',
       guideTitle: 'Google Cloud OAuth API Setup',
       guideBody: (
         <>
@@ -780,7 +780,7 @@ const ConnectWizardModal = ({ provider, currentData, onClose, onSave }) => {
       title: 'Connect LinkedIn Integration',
       icon: 'linkedin',
       accountLabel: 'LinkedIn Profile Handle or Page Name',
-      accountPlaceholder: 'e.g. anup-bhandarkar',
+      accountPlaceholder: 'e.g. user-12345',
       guideTitle: 'LinkedIn Developer Portal & Partner Webhooks',
       guideBody: (
         <>
