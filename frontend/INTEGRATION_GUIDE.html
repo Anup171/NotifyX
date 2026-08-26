@@ -208,6 +208,7 @@
     }
     .method.GET    { color: var(--green);  background: var(--green-soft); }
     .method.POST   { color: var(--violet); background: var(--violet-soft); }
+    .method.PUT    { color: var(--amber);  background: var(--amber-soft); }
     .method.PATCH  { color: var(--amber);  background: var(--amber-soft); }
     .method.DELETE { color: var(--red);    background: var(--red-soft); }
 
@@ -632,7 +633,7 @@ npx serve . -l 8080   <span class="t-cm"># or open dashboard.html directly</span
 <span class="t-kw">await</span> <span class="t-fn">notify</span>({
   recipientId: <span class="t-str">'user_alice'</span>,
   senderId:    <span class="t-str">'user_bob'</span>,
-  type:        <span class="t-str">'comment'</span>,   <span class="t-cm">// like | comment | follow | mention</span>
+  type:        <span class="t-str">'comment'</span>,   <span class="t-cm">// like | comment | follow | mention | system</span>
   payload:     { message: <span class="t-str">'Nice work!'</span>, link: <span class="t-str">'/posts/123'</span> },
 });</pre>
         </div>
@@ -801,7 +802,7 @@ setInterval(<span class="t-kw">async</span> () => {
 <span class="t-kw">const</span> prefs = <span class="t-kw">await</span> fetch(<span class="t-str">'/api/users/preferences'</span>, {
   headers: { <span class="t-str">'Authorization'</span>: <span class="t-str">`Bearer ${token}`</span> },
 }).<span class="t-fn">then</span>(r => r.<span class="t-fn">json</span>());
-<span class="t-cm">// { inApp: true, mutedTypes: [], quietHours: { enabled: false, startHour: 22, endHour: 8 } }</span>
+<span class="t-cm">// { inApp: true, mutedTypes: [], quietHours: { enabled: false, startHour: 22, endHour: 7 } }</span>
 
 <span class="t-cm">// update — mute likes, enable quiet hours 11pm–7am</span>
 <span class="t-kw">await</span> fetch(<span class="t-str">'/api/users/preferences'</span>, {
@@ -860,6 +861,8 @@ setInterval(<span class="t-kw">async</span> () => {
             <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/keys/self</span><span class="endpoint-desc">List your keys</span></div>
             <div class="endpoint-row"><span class="method DELETE">DELETE</span><span class="endpoint-path">/api/keys/self/:id</span><span class="endpoint-desc">Revoke your key</span></div>
             <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/keys</span><span class="endpoint-desc">Admin — generate any key (x-admin-secret header)</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/keys</span><span class="endpoint-desc">Admin — list all keys (x-admin-secret header)</span></div>
+            <div class="endpoint-row"><span class="method DELETE">DELETE</span><span class="endpoint-path">/api/keys/:id</span><span class="endpoint-desc">Admin — revoke any key (x-admin-secret header)</span></div>
           </div>
         </div>
 
@@ -867,9 +870,21 @@ setInterval(<span class="t-kw">async</span> () => {
         <div class="card">
           <div class="endpoint-list">
             <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/users/preferences</span><span class="endpoint-desc">Get preferences</span></div>
-            <div class="endpoint-row"><span class="method PATCH">PATCH</span><span class="endpoint-path">/api/users/preferences</span><span class="endpoint-desc">Update preferences</span></div>
+            <div class="endpoint-row"><span class="method PUT">PUT</span><span class="endpoint-path">/api/users/preferences</span><span class="endpoint-desc">Update preferences</span></div>
             <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/metrics</span><span class="endpoint-desc">Delivery stats (success / failed counters)</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/metrics/series</span><span class="endpoint-desc">Time-series data for AreaChart (?range=1h|24h|7d|30d)</span></div>
             <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/health</span><span class="endpoint-desc">Server health (no auth)</span></div>
+          </div>
+        </div>
+
+        <h3>Social &amp; Productivity Integrations</h3>
+        <div class="card">
+          <div class="endpoint-list">
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/users/integrations</span><span class="endpoint-desc">Get current user social integration statuses</span></div>
+            <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/users/integrations/toggle</span><span class="endpoint-desc">Connect or disconnect a provider (github, gmail, etc.)</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/integrations/status</span><span class="endpoint-desc">Configure integrations env-vars</span></div>
+            <div class="endpoint-row"><span class="method GET">GET</span><span class="endpoint-path">/api/integrations/:provider/data</span><span class="endpoint-desc">Fetch live external events from provider</span></div>
+            <div class="endpoint-row"><span class="method POST">POST</span><span class="endpoint-path">/api/integrations/webhooks/:provider</span><span class="endpoint-desc">Webhook receiver for provider</span></div>
           </div>
         </div>
       </section>
@@ -984,7 +999,7 @@ git push -u origin main</pre>
         <p>Pass a unique <code>idempotencyKey</code> with each request. NotifyX uses two layers: Redis <code>SET NX</code> at the API boundary (24h TTL, returns <code>409 Conflict</code> on the fast path) and a MongoDB sparse unique index in the dispatcher (silent skip via <code>E11000</code> if Redis was wiped).</p>
 
         <h3>What notification types are supported?</h3>
-        <p><code>like</code>, <code>comment</code>, <code>follow</code>, <code>mention</code>. To add more, update <code>NOTIFICATION_TYPES</code> in <code>shared/constants.js</code> and the Joi enum in <code>server/src/routes/notify.js</code>.</p>
+        <p><code>like</code>, <code>comment</code>, <code>follow</code>, <code>mention</code>, and <code>system</code> (used internally by integrations). To add more, update <code>NOTIFICATION_TYPES</code> in <code>shared/constants.js</code> and the Joi enum in <code>server/src/routes/notify.js</code>.</p>
 
         <h3>Is there a queue or background worker?</h3>
         <p>No. An earlier version used BullMQ with a separate worker process, but BullMQ's continuous Redis polling (BZPOPMIN / EVALSHA / ZRANGE) was burning Upstash command quota at zero load and pinning the Render free tier awake. Dispatch now runs in the same process as the API via <code>setImmediate</code> after the 202 response. Simpler, cheaper — at the cost of no automatic retry/DLQ.</p>

@@ -107,8 +107,9 @@ NotifyX/
 |       |   |-- notify.js       # POST /api/notify - inline setImmediate dispatch
 |       |   |-- notifications.js# GET/PATCH inbox + unread count
 |       |   |-- preferences.js  # GET/PUT /api/users/preferences
-|       |   |-- metrics.js      # GET /api/metrics
-|       |   `-- apikeys.js      # POST/GET/DELETE /api/keys
+|       |   |-- metrics.js      # GET /api/metrics + series data
+|       |   |-- apikeys.js      # POST/GET/DELETE /api/keys
+|       |   `-- integrations.js # GET/POST social/productivity integrations & webhooks
 |       |-- services/
 |       |   |-- integrationPoller.js   # Background poller for connected integrations
 |       |   `-- notificationDelivery.js # Shared validation, save & socket emission logic
@@ -151,7 +152,7 @@ Auth:  Bearer <token>  OR  ApiKey nx_<key>
 Body:  {
   "recipientId":    "user_alice",
   "senderId":       "my-app",
-  "type":           "like" | "comment" | "follow" | "mention",
+  "type":           "like" | "comment" | "follow" | "mention" | "system",
   "payload":        { "message": "..." },
   "idempotencyKey": "<unique-id>"
 }
@@ -192,8 +193,19 @@ Body: { "inApp": true, "mutedTypes": [], "quietHours": { "enabled": false } }
 ### Metrics & Health
 
 ```text
-GET /api/metrics   # { delivery: { total, success, failed, successRate, failureRate } }
-GET /health        # { status, uptime } - DB readiness only, no Redis hit
+GET /api/metrics          # { delivery: { total, success, failed, successRate, failureRate } }
+GET /api/metrics/series   # AreaChart time-series stats (?range=1h|24h|7d|30d)
+GET /health               # { status, uptime } - DB readiness only, no Redis hit
+```
+
+### Social & Productivity Integrations
+
+```text
+GET    /api/users/integrations           # get integration connection statuses
+POST   /api/users/integrations/toggle    # connect/disconnect a social provider
+GET    /api/integrations/status          # configure integrations env-vars
+GET    /api/integrations/:provider/data  # fetch live external events (github, gmail, etc.)
+POST   /api/integrations/webhooks/:prov  # webhook receiver endpoints
 ```
 
 </details>
@@ -391,7 +403,7 @@ socket.on("disconnect", () =>
 
 ### Notification Types
 
-Currently supported: `like`, `comment`, `follow`, `mention`. Add more in `shared/constants.js` -> `NOTIFICATION_TYPES`, then update the Joi enum in `server/src/routes/notify.js`.
+Currently supported: `like`, `comment`, `follow`, `mention`, and `system` (used internally by integrations). Add more in `shared/constants.js` -> `NOTIFICATION_TYPES`, then update the Joi enum in `server/src/routes/notify.js`.
 
 </details>
 
