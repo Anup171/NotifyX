@@ -6,6 +6,6 @@ const DEFAULT_PREFERENCES = {
   mutedTypes: [],
 };
 
-const NOTIFICATION_TYPES = ['like', 'comment', 'follow', 'mention'];
+const NOTIFICATION_TYPES = ['like', 'comment', 'follow', 'mention', 'system'];
 
 module.exports = { DEFAULT_PREFERENCES, NOTIFICATION_TYPES };

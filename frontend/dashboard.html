@@ -4,6 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="NotifyX — High-performance real-time notification system and developer dashboard." />
+  <meta name="theme-color" content="#0c0c0c" />
   <title>NotifyX — Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,7 +19,30 @@
   <div id="root"></div>
 
   <script>
-    window.NOTIFYX_API_URL = 'https://notifyx-api-fln6.onrender.com';
+    // Smart API URL resolution:
+    // 1. Query param ?api=http://... or localStorage 'notifyx_api_override'
+    // 2. Localhost / 127.0.0.1 -> http://localhost:3000
+    // 3. Deployed production -> https://notifyx-api-fln6.onrender.com
+    (function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryApi = urlParams.get('api');
+      const storageApi = localStorage.getItem('notifyx_api_override');
+      
+      if (queryApi) {
+        localStorage.setItem('notifyx_api_override', queryApi);
+        window.NOTIFYX_API_URL = queryApi;
+      } else if (storageApi) {
+        window.NOTIFYX_API_URL = storageApi;
+      } else {
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1' || 
+                            window.location.hostname === '';
+        window.NOTIFYX_API_URL = isLocalhost 
+          ? 'http://localhost:3000' 
+          : 'https://notifyx-api-fln6.onrender.com';
+      }
+      console.log('[NotifyX] Using API base URL:', window.NOTIFYX_API_URL);
+    })();
   </script>
 
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"

@@ -5,6 +5,14 @@ const { Sparkline, AreaChart, RingChart, BarChart, Heatmap } = window.Charts;
 const { EMPTY_SERIES, DEFAULT_PREFS, PREF_DEFS } = window.NTFX_DATA;
 const { apiFetch } = window.NTFX_AUTH;
 
+const formatDisplayMessage = (msg) => {
+  if (!msg) return '';
+  if (msg.includes('Pushed 0 commit(s) to ')) {
+    return msg.replace('Pushed 0 commit(s) to ', 'Pushed code update to ');
+  }
+  return msg;
+};
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 const useLastUpdated = () => {
   const [secs, setSecs] = React.useState(14);
@@ -190,7 +198,7 @@ const Dashboard = ({ onNavigate }) => {
                       <Icon name={icon} size={12} />
                     </div>
                     <div className="activity-text">
-                      <div className="title">{a.payload?.message || (<><b>{a.senderId}</b> → {a.type}</>)}</div>
+                      <div className="title">{formatDisplayMessage(a.payload?.message) || (<><b>{a.senderId}</b> → {a.type}</>)}</div>
                       <div className="meta">{src || a.type} · recipient: {a.recipientId}</div>
                     </div>
                     <div className="activity-time">{a.createdAt ? new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'now'}</div>
@@ -306,14 +314,22 @@ const Queue = () => {
   const [dateMenuOpen, setDateMenuOpen] = React.useState(false);
   const [dateFilter, setDateFilter] = React.useState('Last 24 hours');
 
+  const currentUserId = window.NTFX_AUTH.getUserId() || '';
+
   // Modal Form State
-  const [newRecipient, setNewRecipient] = React.useState('');
+  const [newRecipient, setNewRecipient] = React.useState(currentUserId);
   const [newType, setNewType] = React.useState('comment');
-  const [newMessage, setNewMessage] = React.useState('');
+  const [newMessage, setNewMessage] = React.useState('Test real-time notification');
   const [sending, setSending] = React.useState(false);
 
+  const openModal = () => {
+    if (!newRecipient) setNewRecipient(window.NTFX_AUTH.getUserId() || '');
+    if (!newMessage) setNewMessage('Test notification from Queue sandbox');
+    setShowModal(true);
+  };
+
   const load = () => {
-    apiFetch('/api/notifications?limit=100').then(data => {
+    apiFetch('/api/notifications?limit=100&scope=queue').then(data => {
       if (Array.isArray(data.notifications)) {
         const mapped = data.notifications.map(n => ({
           id: n._id || n.id || 'notif_' + Math.random().toString(36).substr(2, 6),
@@ -351,7 +367,7 @@ const Queue = () => {
 
   const filtered = dateFilteredJobs.filter(j => (filter === 'all' || j.status === filter) && (type === 'all' || j.type === type));
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
   const retry = async (job) => {
     const validType = ['like', 'comment', 'mention', 'follow'].includes(job.type) ? job.type : 'comment';
@@ -376,7 +392,8 @@ const Queue = () => {
 
   const submitNewJob = async (e) => {
     e.preventDefault();
-    if (!newRecipient.trim()) return showToast('Recipient User ID is required');
+    const targetRecipient = (newRecipient || window.NTFX_AUTH.getUserId() || '').trim();
+    if (!targetRecipient) return showToast('Recipient User ID is required');
     if (!newMessage.trim()) return showToast('Payload message is required');
     setSending(true);
     try {
@@ -384,18 +401,32 @@ const Queue = () => {
       await apiFetch('/api/notify', {
         method: 'POST',
         body: {
-          recipientId: newRecipient.trim(),
-          senderId: window.NTFX_AUTH.getUserId() || 'user',
+          recipientId: targetRecipient,
+          senderId: window.NTFX_AUTH.getUserId() || 'dashboard',
           type: newType,
           payload: { message: newMessage.trim() },
           idempotencyKey,
         }
       });
+
+      // Optimistically add to jobs list
+      const optimisticJob = {
+        id: idempotencyKey,
+        type: newType,
+        status: 'completed',
+        attempts: 1,
+        max: 5,
+        createdAt: new Date().toISOString(),
+        created: 0,
+        payload: newMessage.trim(),
+        recipientId: targetRecipient,
+        error: null,
+      };
+      setJobs(prev => [optimisticJob, ...prev]);
+
       setShowModal(false);
-      setNewRecipient('');
-      setNewMessage('');
-      showToast(`✓ Notification dispatched to ${newRecipient.trim()}`);
-      load();
+      showToast(`✓ Dispatched to "${targetRecipient}"! Check Notifications tab.`);
+      setTimeout(() => load(), 500);
     } catch (err) {
       showToast(`Dispatch failed: ${err.message}`);
     } finally {
@@ -421,13 +452,13 @@ const Queue = () => {
             <span className="live-label mono fg-dim">{jobs.length} total jobs loaded</span>
           </span>
           <button className="btn ghost" onClick={load}><Icon name="refresh" size={12} /> Refresh</button>
-          <button className="btn primary" onClick={() => setShowModal(true)}><Icon name="plus" size={12} /> Dispatch New Job</button>
+          <button className="btn primary" onClick={openModal}><Icon name="plus" size={12} /> Dispatch New Job</button>
         </div>
       </div>
 
       {/* New Job Modal */}
       {showModal && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal-dialog">
             <div className="card-h">
               <h3>Dispatch New Notification Job</h3>
@@ -436,7 +467,13 @@ const Queue = () => {
             <form onSubmit={submitNewJob} className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--fg-muted)', display: 'block', marginBottom: 4 }}>Recipient User ID</label>
-                <input className="input-control" value={newRecipient} onChange={e => setNewRecipient(e.target.value)} required />
+                <input
+                  className="input-control"
+                  placeholder="e.g. user_alice or your ID"
+                  value={newRecipient}
+                  onChange={e => setNewRecipient(e.target.value)}
+                  required
+                />
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--fg-muted)', display: 'block', marginBottom: 4 }}>Event Type</label>
@@ -445,11 +482,20 @@ const Queue = () => {
                   <option value="like">Like / Reaction</option>
                   <option value="mention">Direct Mention</option>
                   <option value="follow">Follow Notification</option>
+                  <option value="system">System Notice</option>
                 </select>
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--fg-muted)', display: 'block', marginBottom: 4 }}>Notification Payload Message</label>
-                <textarea className="input-control" value={newMessage} onChange={e => setNewMessage(e.target.value)} required rows={3} style={{ resize: 'none' }} />
+                <textarea
+                  className="input-control"
+                  placeholder="Enter message text..."
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  required
+                  rows={3}
+                  style={{ resize: 'none' }}
+                />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
                 <button type="button" className="btn ghost" onClick={() => setShowModal(false)}>Cancel</button>
@@ -475,12 +521,22 @@ const Queue = () => {
             </button>
             {typeMenuOpen && (
               <div className="dropdown-menu">
-                {['all', 'comment', 'like', 'mention', 'follow', 'system'].map(t => (
-                  <div key={t} className={`dropdown-item ${type === t ? 'active' : ''}`} onClick={() => { setType(t); setTypeMenuOpen(false); }}>
-                    <span>{t === 'all' ? 'All types' : t}</span>
-                    {type === t && <Icon name="check" size={11} />}
-                  </div>
-                ))}
+                {['all', 'comment', 'like', 'mention', 'follow', 'system'].map(t => {
+                  const labelMap = {
+                    all: 'All types',
+                    comment: 'Comments',
+                    like: 'Likes',
+                    mention: 'Mentions',
+                    follow: 'Follows',
+                    system: 'Integrations',
+                  };
+                  return (
+                    <div key={t} className={`dropdown-item ${type === t ? 'active' : ''}`} onClick={() => { setType(t); setTypeMenuOpen(false); }}>
+                      <span>{labelMap[t] || t}</span>
+                      {type === t && <Icon name="check" size={11} />}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -620,7 +676,12 @@ const Notifications = ({ socket, onUnreadChange }) => {
     onUnreadChange && onUnreadChange(0);
   };
 
-  const filterFn = (n) => tab === 'all' ? true : tab === 'unread' ? n.status === 'unread' : n.type === tab;
+  const filterFn = (n) => {
+    if (tab === 'all') return true;
+    if (tab === 'unread') return n.status === 'unread';
+    if (tab === 'system') return n.type === 'system' || Boolean(n.payload?.source);
+    return n.type === tab;
+  };
   const visible = items.filter(filterFn);
 
   // Group by date
@@ -635,14 +696,15 @@ const Notifications = ({ socket, onUnreadChange }) => {
   const tabs = [
     { k: 'all', label: 'All' },
     { k: 'unread', label: 'Unread', count: totalUnread },
-    { k: 'system', label: 'Integrations' },
-    { k: 'mention', label: 'Mentions' },
     { k: 'comment', label: 'Comments' },
     { k: 'like', label: 'Likes' },
+    { k: 'mention', label: 'Mentions' },
+    { k: 'follow', label: 'Follows' },
+    { k: 'system', label: 'Integrations' },
   ];
 
   return (
-    <div className="page" style={{ maxWidth: 920 }}>
+    <div className="page">
       <div className="page-header">
         <div>
           <div className="eyebrow">Personal inbox</div>
@@ -704,7 +766,7 @@ const Notifications = ({ socket, onUnreadChange }) => {
                   </div>
                   <div className="notif-body">
                     <div className="notif-title">
-                      {n.payload?.message || (<><b>{n.senderId}</b> sent a {n.type}</>)}
+                      {formatDisplayMessage(n.payload?.message) || (<><b>{n.senderId}</b> sent a {n.type}</>)}
                     </div>
                     <div className="notif-meta">
                       {sourceLabel ? `${sourceLabel} · ${n.payload?.eventType || n.type}` : `${n.type} · ${n._id || n.id}`}
@@ -1509,6 +1571,92 @@ const ApiKeys = () => {
 
   const activeCount = keys.filter(k => k.active).length;
 
+  const [exampleFmt, setExampleFmt] = React.useState('curl');
+  const apiBase = (window.NOTIFYX_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const activeKeySample = newKey || (keys[0] ? `${keys[0].prefix}…` : 'nx_live_sample_key_12345');
+  const recipientSample = getUserId() || 'Anup_xyz';
+
+  const snippets = {
+    curl: `curl -X POST ${apiBase}/api/notify \\
+  -H "Authorization: ApiKey ${activeKeySample}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "recipientId": "${recipientSample}",
+    "senderId": "backend-service",
+    "type": "comment",
+    "payload": {
+      "message": "Notification dispatched from API key!",
+      "namespace": "production"
+    },
+    "idempotencyKey": "job_'$(date +%s)'"
+  }'`,
+
+    powershell: `$body = @'
+{
+  "recipientId": "${recipientSample}",
+  "senderId": "backend-service",
+  "type": "comment",
+  "payload": {
+    "message": "Notification dispatched from API key!",
+    "namespace": "production"
+  },
+  "idempotencyKey": "job_powershell_001"
+}
+'@
+
+curl.exe -X POST "${apiBase}/api/notify" \`
+  -H "Authorization: ApiKey ${activeKeySample}" \`
+  -H "Content-Type: application/json" \`
+  -d $body`,
+
+    node: `const API_KEY = "${activeKeySample}";
+
+const response = await fetch("${apiBase}/api/notify", {
+  method: "POST",
+  headers: {
+    "Authorization": \`ApiKey \${API_KEY}\`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    recipientId: "${recipientSample}",
+    senderId: "backend-service",
+    type: "comment",
+    payload: {
+      message: "Notification dispatched from API key!",
+      namespace: "production",
+    },
+    idempotencyKey: "job_" + Date.now(),
+  }),
+});
+
+const data = await response.json();
+console.log(data); // { status: "accepted" }`,
+
+    python: `import uuid, requests
+
+API_KEY = "${activeKeySample}"
+
+response = requests.post(
+    "${apiBase}/api/notify",
+    headers={
+        "Authorization": f"ApiKey {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json={
+        "recipientId": "${recipientSample}",
+        "senderId": "backend-service",
+        "type": "comment",
+        "payload": {
+            "message": "Notification dispatched from API key!",
+            "namespace": "production",
+        },
+        "idempotencyKey": str(uuid.uuid4()),
+    },
+)
+
+print(response.status_code, response.json())`
+  };
+
   return (
     <>
       <div className="page">
@@ -1638,39 +1786,51 @@ const ApiKeys = () => {
 
           {/* Integration Code Example Card */}
           <div className="card">
-            <div className="card-h">
+            <div className="card-h" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
               <div>
                 <h3>Usage example</h3>
-                <div className="sub">Server-to-server HTTP request format</div>
+                <div className="sub">Server-to-server HTTP request format & ready-to-run snippets</div>
+              </div>
+              <div className="tabs" style={{ margin: 0 }}>
+                {['curl', 'powershell', 'node', 'python'].map(fmt => (
+                  <button
+                    key={fmt}
+                    type="button"
+                    className={`tab ${exampleFmt === fmt ? 'active' : ''}`}
+                    onClick={() => setExampleFmt(fmt)}
+                  >
+                    {fmt === 'curl' ? 'cURL (Bash)' : fmt === 'powershell' ? 'PowerShell' : fmt === 'node' ? 'Node.js' : 'Python'}
+                  </button>
+                ))}
               </div>
             </div>
             <div className="card-body">
-              <div className="pref-desc" style={{ marginBottom: 12 }}>
-                Pass your API key in the <span className="mono">Authorization</span> header: <span className="kbd">Authorization: ApiKey nx_YOUR_KEY</span>
+              <div className="pref-desc" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Pass your API key in the <span className="mono">Authorization</span> header: <span className="kbd">Authorization: ApiKey nx_...</span></span>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(snippets[exampleFmt]);
+                    showToast('✓ Snippet copied to clipboard!');
+                  }}
+                >
+                  <Icon name="copy" size={11} />
+                  <span>Copy Snippet</span>
+                </button>
               </div>
               <pre style={{
-                background: 'var(--panel-2)',
+                background: 'var(--bg)',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius)',
                 padding: '14px 16px',
                 fontSize: 12,
                 fontFamily: 'var(--font-mono)',
-                lineHeight: 1.7,
+                lineHeight: 1.6,
                 overflowX: 'auto',
                 color: 'var(--fg)',
                 margin: 0
-              }}>{
-                  `curl -X POST http://localhost:3000/api/notify \\
-  -H "Authorization: ApiKey nx_YOUR_KEY_HERE" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "recipientId": "user_alice",
-    "senderId": "my-app",
-    "type": "comment",
-    "payload": { "message": "Hey there!" },
-    "idempotencyKey": "unique-id-001"
-  }'`
-                }</pre>
+              }}>{snippets[exampleFmt]}</pre>
             </div>
           </div>
 

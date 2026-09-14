@@ -26,17 +26,20 @@ A real-time notification platform built with Node.js, Express, Socket.io, MongoD
 
 ## Features
 
-- **User Authentication** - signup + password login with bcrypt hashing
-- **API Keys** - per-app, SHA-256 hashed, self-service or admin generated
-- **Async Dispatch** - `setImmediate` after a 202, no queue infrastructure to maintain
-- **Real-time Delivery** - direct `io.to(userId).emit()` from the same process; sub-50 ms when online
-- **Offline Sync** - undelivered rows pushed on next socket connect
-- **Two-layer Idempotency** - Redis `SET NX` + MongoDB sparse unique index
-- **In-memory Rate Limiting** - 10,000 req/min global + 50 req/min per user, zero Redis cost
-- **User Preferences** - inApp toggle, quiet hours, muted notification types
+- **Interactive Multi-Screen Dashboard** - Overview, Queue, Real-time Inbox, Metrics, API Keys, Settings & Integrations
+- **User Authentication** - signup + password login with bcrypt hashing and JWT tokens
+- **Real-time Delivery** - direct `io.to(userId).emit()` from the same process via Socket.io (<50ms when online)
+- **Smart Backend Auto-Discovery** - automatically connects to `http://localhost:3000` when running locally and `https://notifyx-api-fln6.onrender.com` on production (overrideable with `?api=...`)
+- **Self-Service API Keys** - generate per-app SHA-256 hashed keys (`nx_...`) with instant revocation
+- **Async In-Process Dispatch** - `setImmediate` after 202 Accepted response, zero queue overhead
+- **Offline Sync** - undelivered notifications saved with `delivered: false` and pushed automatically on reconnect
+- **Two-layer Idempotency** - Redis `SET NX` (layer 1) + MongoDB sparse unique index (layer 2)
+- **In-memory Rate Limiting** - 10,000 req/min global + 50 req/min per user, zero Redis command cost
+- **User Preferences & Quiet Hours** - inApp channel toggle, quiet hours schedule, muted notification types
+- **External Channel Integrations** - GitHub, Gmail, LinkedIn, and WhatsApp webhook & sync poller
 - **Cache-aside** - preferences cached in Redis (5 min TTL); unread badge count cached (30 s TTL)
 - **30-day TTL** - MongoDB TTL index auto-archives old notifications
-- **Metrics Endpoint** - running success/failure counters
+- **Interactive Integration Guide & Landing Page** - full API sandbox, cURL, Node.js, Python, and Socket.io client examples
 
 ---
 
@@ -53,7 +56,7 @@ Your App (HTTP)
 | - Redis SETNX idempotency              |
 | - res.status(202) immediate            |
 | - setImmediate(dispatch)               |
-|    - check prefs                       |
+|    - check user prefs                  |
 |    - Notification.create() (Mongo)     |
 |    - io.to(userId).emit()              |
 +----------------------------------------+
@@ -117,8 +120,17 @@ NotifyX/
 |           `-- socketServer.js # Auth, rooms, offline sync, exports getIO/isOnline
 |
 |-- frontend/                   # React-via-CDN dashboard + landing + integration guide
+|   |-- dashboard.html          # Main application shell with dynamic API switcher
+|   |-- landing.html / index.html# Marketing landing page & live demo
+|   |-- INTEGRATION_GUIDE.html  # Interactive developer integration documentation
+|   |-- app.jsx                 # Routing, authentication guard, Socket.io lifecycle
+|   |-- screens.jsx             # Overview, Queue, Notifications, Metrics, API Keys, Settings
+|   |-- data.jsx                # API client layer & chart dataset utilities
+|   |-- charts.jsx              # Canvas-based data visualisations (Sparkline, Area, Ring, Heatmap)
+|   `-- styles.css              # Dark aesthetic design system
 |
-|-- render.yaml                 # Render.com - single web service
+|-- render.yaml                 # Render.com - single web service configuration
+|-- INTEGRATION_GUIDE.md        # Comprehensive backend and client integration documentation
 `-- README.md
 ```
 
@@ -214,20 +226,21 @@ POST   /api/integrations/webhooks/:prov  # webhook receiver endpoints
 
 ## Live Demo
 
-### Production Deployment (Free Tier)
+### Production Deployment
 
-| Component        | URL                                        | Status |
-| ---------------- | ------------------------------------------ | ------ |
-| **Dashboard**    | <https://notifyx-sumit.vercel.app>         | Live   |
-| **API Server**   | <https://notifyx-d60k.onrender.com>        | Live   |
-| **Health Check** | <https://notifyx-d60k.onrender.com/health> | OK     |
+| Component        | URL                                            | Status |
+| ---------------- | ---------------------------------------------- | ------ |
+| **Dashboard**    | <https://notifyx-sumit.vercel.app/dashboard.html> | Live   |
+| **Landing Page** | <https://notifyx-sumit.vercel.app>             | Live   |
+| **API Server**   | <https://notifyx-api-fln6.onrender.com>        | Live   |
+| **Health Check** | <https://notifyx-api-fln6.onrender.com/health> | OK     |
 
 **Quick Test:**
 
-1. Visit the [live dashboard](https://notifyx-sumit.vercel.app)
+1. Visit the [live dashboard](https://notifyx-sumit.vercel.app/dashboard.html)
 2. Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars)
-3. Go to **Queue** tab -> Send a test notification
-4. Switch to **Notifications** tab -> See it arrive in real-time
+3. Go to **Queue** tab -> Send a test notification to your User ID
+4. Switch to **Notifications** tab -> See it arrive in real-time via WebSockets
 
 ---
 
@@ -242,7 +255,10 @@ POST   /api/integrations/webhooks/:prov  # webhook receiver endpoints
 git clone https://github.com/YOUR_USERNAME/notifyx.git
 cd notifyx
 
-npm install              # shared/models needs mongoose
+# Install root dependencies
+npm install
+
+# Install server dependencies
 cd server && npm install
 ```
 
@@ -255,28 +271,32 @@ PORT=3000
 NODE_ENV=development
 REDIS_URL=redis://localhost:6379          # or rediss://... for Upstash
 MONGODB_URI=mongodb://localhost:27017/notifyx
-JWT_SECRET=your-secret-key-min-32-chars
+JWT_SECRET=dev-secret-change-me-in-production
 ADMIN_SECRET=notifyx-demo
 CORS_ORIGIN=http://localhost:8080
+LOG_LEVEL=info
 ```
 
 ### 3. Start services
 
 ```bash
-# Terminal 1 - API server + dispatcher (one process)
-cd server && npm start
+# Terminal 1 - API server + Socket.io (Port 3000)
+cd server
+npm run dev
 
-# Terminal 2 - Frontend
-cd frontend && npx serve . -l 8080
+# Terminal 2 - Frontend static web server (Port 8080)
+cd frontend
+npx serve . -l 8080
 ```
 
 ### 4. Open browser
 
-- Dashboard: `http://localhost:8080/dashboard.html`
-- Landing: `http://localhost:8080/` (or `/landing.html`)
-- Health: `http://localhost:3000/health`
+- **Dashboard:** `http://localhost:8080/dashboard.html`
+- **Landing Page:** `http://localhost:8080/` (or `http://localhost:8080/landing.html`)
+- **Integration Guide:** `http://localhost:8080/INTEGRATION_GUIDE.html`
+- **Health Check:** `http://localhost:3000/health`
 
-Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars).
+> **Note:** The dashboard automatically connects to `http://localhost:3000` when opened on `localhost`. To test against another backend, pass `?api=http://...` in the browser URL.
 
 </details>
 
@@ -321,91 +341,12 @@ Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars).
 
 ---
 
-<details>
-<summary>Integration Guide</summary>
+## Integration Guide
 
-### For Server-to-Server (API Keys)
+For full client and server integration documentation, code examples (Node.js, Python, cURL), WebSocket setup, and error code tables, see:
 
-#### Step 1 - Create an API key
-
-```bash
-curl -X POST https://YOUR_API_URL/api/keys \
-  -H "x-admin-secret: your-admin-secret" \
-  -H "Content-Type: application/json" \
-  -d '{"appName": "my-blog"}'
-# Returns: { "key": "nx_...", "note": "Save this - shown once only" }
-```
-
-#### Step 2 - Send notifications from your backend
-
-```js
-const API_KEY = process.env.NOTIFYX_API_KEY;
-
-async function notifyUser(recipientId, senderId, type, message) {
-  const response = await fetch("https://YOUR_API_URL/api/notify", {
-    method: "POST",
-    headers: {
-      Authorization: `ApiKey ${API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      recipientId,
-      senderId,
-      type, // 'like' | 'comment' | 'follow' | 'mention'
-      payload: { message, link: "/posts/123" },
-      idempotencyKey: crypto.randomUUID(),
-      priority: 5, // 1-10, optional
-    }),
-  });
-
-  if (!response.ok) {
-    console.error("Failed:", await response.json());
-    return null;
-  }
-
-  return response.json(); // { status: 'accepted' }
-}
-
-await notifyUser("user_alice", "my-blog", "comment", "Great post!");
-```
-
-### For Browser Clients (Socket.io)
-
-#### Step 1 - Log in and get a JWT
-
-```js
-const { token } = await fetch("https://YOUR_API_URL/api/auth/login", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ userId: "user_alice", password: "..." }),
-}).then((r) => r.json());
-
-localStorage.setItem("jwt_token", token);
-```
-
-#### Step 2 - Connect Socket.io and listen for notifications
-
-```js
-const socket = io("https://YOUR_API_URL", {
-  auth: { token: localStorage.getItem("jwt_token") },
-});
-
-socket.on("notification", (notif) => {
-  // { _id, recipientId, senderId, type, payload, delivered, createdAt }
-  showNotificationToast(`${notif.senderId}: ${notif.payload.message}`);
-});
-
-socket.on("connect", () => console.log("connected - offline sync triggered"));
-socket.on("disconnect", () =>
-  console.log("disconnected - will re-sync on reconnect"),
-);
-```
-
-### Notification Types
-
-Currently supported: `like`, `comment`, `follow`, `mention`, and `system` (used internally by integrations). Add more in `shared/constants.js` -> `NOTIFICATION_TYPES`, then update the Joi enum in `server/src/routes/notify.js`.
-
-</details>
+- 📖 **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** — In-depth Markdown guide
+- 🌐 **Interactive Guide:** Open `http://localhost:8080/INTEGRATION_GUIDE.html` or view it live on the dashboard
 
 ---
 

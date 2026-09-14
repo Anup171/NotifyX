@@ -138,25 +138,44 @@ router.post('/webhooks/github', express.json({ verify: (req, _res, buf) => { req
 
   let message;
   const repo = body.repository?.full_name || '';
+  const branch = body.ref ? body.ref.replace(/^refs\/heads\//, '') : null;
+  const branchTag = branch ? ` (${branch})` : '';
+
   switch (event) {
-    case 'push':
-      message = `Pushed ${body.commits?.length || 0} commit(s) to ${repo}`;
+    case 'push': {
+      const count = body.commits?.length || 1;
+      const firstCommit = body.commits?.[0]?.message?.split('\n')?.[0]?.trim();
+      if (firstCommit) {
+        const cleanMsg = firstCommit.length > 55 ? firstCommit.slice(0, 52) + '…' : firstCommit;
+        message = count > 1 
+          ? `Pushed ${count} commits to ${repo}${branchTag}: "${cleanMsg}"`
+          : `Pushed commit to ${repo}${branchTag}: "${cleanMsg}"`;
+      } else {
+        message = count > 1 ? `Pushed ${count} commits to ${repo}${branchTag}` : `Pushed code update to ${repo}${branchTag}`;
+      }
       break;
-    case 'pull_request':
-      message = `${body.action} PR #${body.pull_request?.number} on ${repo}`;
+    }
+    case 'pull_request': {
+      const title = body.pull_request?.title ? ` "${body.pull_request.title.slice(0, 45)}"` : '';
+      message = `${body.action || 'Opened'} PR #${body.pull_request?.number}${title} on ${repo}`;
       break;
-    case 'issues':
-      message = `${body.action} issue #${body.issue?.number} on ${repo}`;
+    }
+    case 'issues': {
+      const title = body.issue?.title ? ` "${body.issue.title.slice(0, 45)}"` : '';
+      message = `${body.action || 'Opened'} issue #${body.issue?.number}${title} on ${repo}`;
       break;
-    case 'issue_comment':
-      message = `Commented on issue #${body.issue?.number} in ${repo}`;
+    }
+    case 'issue_comment': {
+      const snippet = body.comment?.body ? ` "${body.comment.body.split('\n')[0].slice(0, 40)}…"` : '';
+      message = `Commented on issue #${body.issue?.number}${snippet} in ${repo}`;
       break;
+    }
     case 'star':
     case 'watch':
       message = `Starred ${repo}`;
       break;
     case 'fork':
-      message = `Forked ${repo}`;
+      message = `Forked ${repo}${body.forkee?.full_name ? ` to ${body.forkee.full_name}` : ''}`;
       break;
     default:
       message = `GitHub ${event} event on ${repo}`;

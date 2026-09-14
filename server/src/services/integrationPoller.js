@@ -15,25 +15,56 @@ const { deliverNotification } = require('./notificationDelivery');
 
 // ─── GitHub Event → Notification mapper ──────────────────────────────────────
 
+const formatPushEvent = (e) => {
+  const repo = e.repo?.name || 'repository';
+  const branch = e.payload?.ref ? e.payload.ref.replace(/^refs\/heads\//, '') : null;
+  const count = e.payload?.size || e.payload?.distinct_size || e.payload?.commits?.length || 1;
+  const commit = e.payload?.commits?.[0];
+  const firstMsg = commit?.message ? commit.message.split('\n')[0].trim() : null;
+  const branchTag = branch ? ` (${branch})` : '';
+
+  if (firstMsg) {
+    const cleanMsg = firstMsg.length > 55 ? firstMsg.slice(0, 52) + '…' : firstMsg;
+    if (count > 1) {
+      return `Pushed ${count} commits to ${repo}${branchTag}: "${cleanMsg}"`;
+    }
+    return `Pushed commit to ${repo}${branchTag}: "${cleanMsg}"`;
+  }
+
+  if (count > 1) {
+    return `Pushed ${count} commits to ${repo}${branchTag}`;
+  }
+  return `Pushed code update to ${repo}${branchTag}`;
+};
+
 const GITHUB_EVENT_MAP = {
-  PushEvent: (e) => `Pushed ${e.payload?.commits?.length || 0} commit(s) to ${e.repo?.name}`,
-  PullRequestEvent: (e) => `${e.payload?.action} PR #${e.payload?.pull_request?.number} on ${e.repo?.name}`,
-  IssuesEvent: (e) => `${e.payload?.action} issue #${e.payload?.issue?.number} on ${e.repo?.name}`,
-  IssueCommentEvent: (e) => `Commented on issue #${e.payload?.issue?.number} in ${e.repo?.name}`,
-  WatchEvent: (e) => `Starred ${e.repo?.name}`,
-  ForkEvent: (e) => `Forked ${e.repo?.name}`,
-  CreateEvent: (e) => `Created ${e.payload?.ref_type}${e.payload?.ref ? ` "${e.payload.ref}"` : ''} on ${e.repo?.name}`,
-  DeleteEvent: (e) => `Deleted ${e.payload?.ref_type} "${e.payload?.ref}" on ${e.repo?.name}`,
-  ReleaseEvent: (e) => `${e.payload?.action} release "${e.payload?.release?.tag_name}" on ${e.repo?.name}`,
-  PullRequestReviewEvent: (e) => `${e.payload?.action} review on PR #${e.payload?.pull_request?.number} in ${e.repo?.name}`,
-  PublicEvent: (e) => `Made ${e.repo?.name} public`,
-  MemberEvent: (e) => `${e.payload?.action} ${e.payload?.member?.login} on ${e.repo?.name}`,
+  PushEvent: formatPushEvent,
+  PullRequestEvent: (e) => {
+    const title = e.payload?.pull_request?.title ? ` "${e.payload.pull_request.title.slice(0, 45)}"` : '';
+    return `${e.payload?.action || 'Opened'} PR #${e.payload?.pull_request?.number}${title} on ${e.repo?.name}`;
+  },
+  IssuesEvent: (e) => {
+    const title = e.payload?.issue?.title ? ` "${e.payload.issue.title.slice(0, 45)}"` : '';
+    return `${e.payload?.action || 'Opened'} issue #${e.payload?.issue?.number}${title} on ${e.repo?.name}`;
+  },
+  IssueCommentEvent: (e) => {
+    const snippet = e.payload?.comment?.body ? ` "${e.payload.comment.body.split('\n')[0].slice(0, 40)}…"` : '';
+    return `Commented on issue #${e.payload?.issue?.number}${snippet} in ${e.repo?.name}`;
+  },
+  WatchEvent: (e) => `Starred repository ${e.repo?.name}`,
+  ForkEvent: (e) => `Forked ${e.repo?.name}${e.payload?.forkee?.full_name ? ` to ${e.payload.forkee.full_name}` : ''}`,
+  CreateEvent: (e) => `Created ${e.payload?.ref_type || 'branch'}${e.payload?.ref ? ` "${e.payload.ref}"` : ''} on ${e.repo?.name}`,
+  DeleteEvent: (e) => `Deleted ${e.payload?.ref_type || 'branch'}${e.payload?.ref ? ` "${e.payload.ref}"` : ''} on ${e.repo?.name}`,
+  ReleaseEvent: (e) => `${e.payload?.action || 'Published'} release "${e.payload?.release?.tag_name || e.payload?.release?.name || 'new release'}" on ${e.repo?.name}`,
+  PullRequestReviewEvent: (e) => `${e.payload?.action || 'Submitted'} review on PR #${e.payload?.pull_request?.number} in ${e.repo?.name}`,
+  PublicEvent: (e) => `Made repository ${e.repo?.name} public`,
+  MemberEvent: (e) => `${e.payload?.action || 'Added'} member ${e.payload?.member?.login} to ${e.repo?.name}`,
 };
 
 const mapGitHubEvent = (event) => {
   const mapper = GITHUB_EVENT_MAP[event.type];
   if (mapper) return mapper(event);
-  return `${event.type.replace('Event', '')} activity on ${event.repo?.name || 'unknown repo'}`;
+  return `${event.type.replace('Event', '')} activity on ${event.repo?.name || 'repository'}`;
 };
 
 // ─── Helper: create notification & emit via Socket.io ───────────────────────

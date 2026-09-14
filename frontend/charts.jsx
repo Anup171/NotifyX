@@ -129,19 +129,50 @@ const AreaChart = ({ series, labels, height = 240 }) => {
 };
 
 const RingChart = ({ value, label, color = 'oklch(0.72 0.14 155)' }) => {
-  const r = 44, c = 2*Math.PI*r;
-  const off = c - (value/100)*c;
+  const r = 46, c = 2 * Math.PI * r;
+  const clampedVal = Math.min(100, Math.max(0, Number(value) || 0));
+  const off = c - (clampedVal / 100) * c;
+  const displayVal = clampedVal % 1 === 0 ? `${clampedVal.toFixed(0)}%` : `${clampedVal.toFixed(1)}%`;
+
   return (
-    <div style={{display:'flex', alignItems:'center', gap:16}}>
-      <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="oklch(0.91 0 0)" strokeWidth="8"/>
-        <circle cx="60" cy="60" r={r} fill="none" stroke={color} strokeWidth="8"
-                strokeDasharray={c} strokeDashoffset={off}
-                strokeLinecap="round" transform="rotate(-90 60 60)"/>
-        <text x="60" y="58" textAnchor="middle" fontSize="22" fontWeight="600" fill="oklch(0.18 0 0)" fontFamily="Inter">
-          {value.toFixed(2)}%
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <svg width="124" height="124" viewBox="0 0 124 124" style={{ overflow: 'visible' }}>
+        <circle cx="62" cy="62" r={r} fill="none" stroke="var(--border)" strokeWidth="7" opacity="0.6" />
+        <circle
+          cx="62"
+          cy="62"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="7"
+          strokeDasharray={c}
+          strokeDashoffset={off}
+          strokeLinecap="round"
+          transform="rotate(-90 62 62)"
+          style={{ transition: 'stroke-dashoffset 400ms ease' }}
+        />
+        <text
+          x="62"
+          y="59"
+          textAnchor="middle"
+          fontSize={displayVal.length > 5 ? "15" : "17"}
+          fontWeight="600"
+          fill="var(--fg)"
+          fontFamily="inherit"
+          letterSpacing="-0.02em"
+        >
+          {displayVal}
         </text>
-        <text x="60" y="76" textAnchor="middle" fontSize="10" fill="oklch(0.64 0 0)" fontFamily="ui-monospace,monospace" letterSpacing="0.06em">
+        <text
+          x="62"
+          y="74"
+          textAnchor="middle"
+          fontSize="9.5"
+          fontWeight="600"
+          fill="var(--fg-muted)"
+          fontFamily="var(--font-mono)"
+          letterSpacing="0.08em"
+        >
           {label.toUpperCase()}
         </text>
       </svg>

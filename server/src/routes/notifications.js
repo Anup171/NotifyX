@@ -5,20 +5,25 @@ const { verifyJWT } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/notifications — paginated inbox for the authenticated user
+// GET /api/notifications — paginated inbox for the authenticated user (or queue monitor)
 router.get('/', verifyJWT, async (req, res, next) => {
   try {
-    const recipientId = req.user.sub;
-    const { status, limit = 20, page = 1 } = req.query;
+    const currentUserId = req.user.sub;
+    const { status, limit = 20, page = 1, scope = 'inbox' } = req.query;
 
-    const query = { recipientId };
+    let query = {};
+    if (scope === 'queue' || scope === 'all') {
+      query = {};
+    } else {
+      query = { recipientId: currentUserId };
+    }
     if (status) query.status = status;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [notifications, total, unread] = await Promise.all([
       Notification.find(query).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).lean(),
       Notification.countDocuments(query),
-      Notification.countDocuments({ recipientId, status: 'unread' }),
+      Notification.countDocuments({ recipientId: currentUserId, status: 'unread' }),
     ]);
 
     res.json({

@@ -193,24 +193,16 @@ const App = () => {
   const [unread, setUnread] = React.useState(0);
   const [onboarding, setOnboarding] = React.useState(false);
 
-  // Hash-based routing & global shortcuts
+  // Hash-based routing
   React.useEffect(() => {
     const apply = () => {
       const h = (location.hash || '').replace('#', '') || 'dashboard';
       if (NAV.find(n => n.k === h)) setRoute(h);
     };
-    const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        document.getElementById('topbar-search-input')?.focus();
-      }
-    };
     apply();
     window.addEventListener('hashchange', apply);
-    window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('hashchange', apply);
-      window.removeEventListener('keydown', onKey);
     };
   }, []);
 
@@ -312,22 +304,6 @@ const App = () => {
             <span>NotifyX</span>
             <span className="sep">/</span>
             <span className="current">{current.screen}</span>
-          </div>
-          <div className="search">
-            <Icon name="search" size={13} />
-            <input id="topbar-search-input" placeholder="Search jobs, notifications, keys… (Press ⌘K)"
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  const val = e.target.value.toLowerCase();
-                  if (val.includes('key')) go('apikeys');
-                  else if (val.includes('notif') || val.includes('inbox')) go('notifications');
-                  else if (val.includes('job') || val.includes('queue')) go('queue');
-                  else if (val.includes('setting') || val.includes('pref')) go('settings');
-                  else if (val.includes('metric')) go('metrics');
-                }
-              }}
-            />
-            <span className="kbd">⌘K</span>
           </div>
           <div className="topbar-right">
             <button className="icon-btn" title="Help / Onboarding" onClick={() => setOnboarding(true)}><Icon name="help" size={14} /></button>
