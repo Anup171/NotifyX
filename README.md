@@ -228,16 +228,16 @@ POST   /api/integrations/webhooks/:prov  # webhook receiver endpoints
 
 ### Production Deployment
 
-| Component        | URL                                            | Status |
-| ---------------- | ---------------------------------------------- | ------ |
-| **Dashboard**    | <https://notifyx-sumit.vercel.app/dashboard.html> | Live   |
-| **Landing Page** | <https://notifyx-sumit.vercel.app>             | Live   |
-| **API Server**   | <https://notifyx-api-fln6.onrender.com>        | Live   |
-| **Health Check** | <https://notifyx-api-fln6.onrender.com/health> | OK     |
+| Component        | URL                                              | Status |
+| ---------------- | ------------------------------------------------ | ------ |
+| **Dashboard**    | <https://notify-x-ten.vercel.app/dashboard.html> | Live   |
+| **Landing Page** | <https://notify-x-ten.vercel.app/>               | Live   |
+| **API Server**   | <https://notifyx-api-fln6.onrender.com/>         | Live   |
+| **Health Check** | <https://notifyx-api-fln6.onrender.com/health>   | OK     |
 
 **Quick Test:**
 
-1. Visit the [live dashboard](https://notifyx-sumit.vercel.app/dashboard.html)
+1. Visit the [live dashboard](https://notify-x-ten.vercel.app/dashboard.html)
 2. Sign up with any User ID (3-30 alphanumeric) and password (min 8 chars)
 3. Go to **Queue** tab -> Send a test notification to your User ID
 4. Switch to **Notifications** tab -> See it arrive in real-time via WebSockets
