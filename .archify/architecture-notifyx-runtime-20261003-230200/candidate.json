@@ -1,0 +1,488 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "NotifyX Runtime Architecture",
+    "output": ".archify/architecture-notifyx-runtime-20261003-230200/notifyx-runtime.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/Anup171/NotifyX.git",
+      "revision": "bb084789304efecd8af7f08c81583979814f37ac",
+      "provider": "github",
+      "link_mode": "web"
+    }
+  },
+  "components": [
+    {
+      "id": "landing",
+      "type": "frontend",
+      "label": "Landing & Sandbox",
+      "sublabel": "Docs & Test UI",
+      "pos": [40, 40],
+      "size": [130, 60],
+      "sources": [
+        {
+          "path": "frontend/index.html",
+          "line": 1,
+          "end_line": 55,
+          "label": "Landing HTML & Sandbox"
+        }
+      ]
+    },
+    {
+      "id": "dashboard",
+      "type": "frontend",
+      "label": "React SPA Dashboard",
+      "sublabel": "Live Feed & Analytics",
+      "pos": [40, 160],
+      "size": [136, 62],
+      "sources": [
+        {
+          "path": "frontend/dashboard.html",
+          "line": 21,
+          "end_line": 64,
+          "label": "React 18 & Socket.io Mount"
+        },
+        {
+          "path": "frontend/app.jsx",
+          "line": 1,
+          "end_line": 50,
+          "label": "Dashboard State & Views"
+        }
+      ]
+    },
+    {
+      "id": "users_apps",
+      "type": "external",
+      "label": "API Clients / SDK",
+      "sublabel": "Microservices & Devs",
+      "pos": [40, 360],
+      "size": [130, 60],
+      "sources": [
+        {
+          "path": "server/src/routes/notify.js",
+          "line": 31,
+          "end_line": 58,
+          "label": "POST /api/notify Ingestion"
+        }
+      ]
+    },
+    {
+      "id": "rate_limiter",
+      "type": "security",
+      "label": "Rate Limiter",
+      "sublabel": "In-Memory Fixed Window",
+      "tag": "10k/m • 50/m user",
+      "pos": [230, 360],
+      "size": [138, 60],
+      "sources": [
+        {
+          "path": "server/src/middleware/rateLimiter.js",
+          "line": 5,
+          "end_line": 49,
+          "label": "Global & Per-User Buckets"
+        }
+      ]
+    },
+    {
+      "id": "auth_guard",
+      "type": "security",
+      "label": "Auth & Key Guard",
+      "sublabel": "JWT / ApiKey SHA-256",
+      "tag": "Dual Auth",
+      "pos": [440, 360],
+      "size": [138, 62],
+      "sources": [
+        {
+          "path": "server/src/middleware/auth.js",
+          "line": 5,
+          "end_line": 36,
+          "label": "JWT & ApiKey Verification"
+        },
+        {
+          "path": "server/src/routes/auth.js",
+          "line": 16,
+          "end_line": 79,
+          "label": "Signup & Login Endpoints"
+        }
+      ]
+    },
+    {
+      "id": "socket_server",
+      "type": "backend",
+      "label": "Socket.io Server",
+      "sublabel": "Rooms & Offline Sync",
+      "tag": "WebSocket :3000",
+      "pos": [440, 160],
+      "size": [138, 62],
+      "sources": [
+        {
+          "path": "server/src/socket/socketServer.js",
+          "line": 14,
+          "end_line": 63,
+          "label": "Socket Server & Catchup"
+        }
+      ]
+    },
+    {
+      "id": "express_api",
+      "type": "backend",
+      "label": "Express REST API",
+      "sublabel": "Ingestion & CRUD :3000",
+      "tag": "Node.js 20",
+      "pos": [660, 360],
+      "size": [146, 66],
+      "sources": [
+        {
+          "path": "server/src/app.js",
+          "line": 11,
+          "end_line": 39,
+          "label": "Express App & Endpoints"
+        },
+        {
+          "path": "render.yaml",
+          "line": 1,
+          "end_line": 26,
+          "label": "Render Web Service Definition"
+        }
+      ]
+    },
+    {
+      "id": "async_dispatcher",
+      "type": "backend",
+      "label": "Async Dispatcher",
+      "sublabel": "setImmediate Engine",
+      "tag": "In-Process Worker",
+      "pos": [660, 160],
+      "size": [146, 64],
+      "sources": [
+        {
+          "path": "server/src/routes/notify.js",
+          "line": 20,
+          "end_line": 28,
+          "label": "Async setImmediate Dispatch"
+        },
+        {
+          "path": "server/src/services/notificationDelivery.js",
+          "line": 25,
+          "end_line": 60,
+          "label": "Delivery Pipeline Logic"
+        }
+      ]
+    },
+    {
+      "id": "integration_poller",
+      "type": "backend",
+      "label": "Integration Poller",
+      "sublabel": "5-Min Cron & Webhooks",
+      "tag": "Background Job",
+      "pos": [660, 560],
+      "size": [146, 76],
+      "sources": [
+        {
+          "path": "server/src/services/integrationPoller.js",
+          "line": 277,
+          "end_line": 349,
+          "label": "5-Min Polling Loop"
+        },
+        {
+          "path": "server/src/routes/integrations.js",
+          "line": 106,
+          "end_line": 195,
+          "label": "Webhook Handlers & Signatures"
+        }
+      ]
+    },
+    {
+      "id": "mongo_db",
+      "type": "database",
+      "label": "MongoDB Atlas",
+      "sublabel": "Primary Document Store",
+      "tag": "30d TTL",
+      "pos": [940, 360],
+      "size": [140, 64],
+      "sources": [
+        {
+          "path": "server/src/config/db.js",
+          "line": 3,
+          "end_line": 8,
+          "label": "Mongoose DB Connect"
+        },
+        {
+          "path": "shared/models/Notification.js",
+          "line": 1,
+          "end_line": 21,
+          "label": "Notification Schema & TTL"
+        }
+      ]
+    },
+    {
+      "id": "redis_cache",
+      "type": "database",
+      "label": "Upstash Redis",
+      "sublabel": "Idempotency & Caching",
+      "tag": "TLS :6379",
+      "pos": [940, 160],
+      "size": [140, 64],
+      "sources": [
+        {
+          "path": "server/src/config/redis.js",
+          "line": 14,
+          "end_line": 29,
+          "label": "ioredis Client Config"
+        },
+        {
+          "path": "server/src/routes/notify.js",
+          "line": 43,
+          "end_line": 46,
+          "label": "Redis SET NX Idempotency"
+        }
+      ]
+    },
+    {
+      "id": "ext_github",
+      "type": "external",
+      "label": "GitHub Platform",
+      "sublabel": "Events API & Webhooks",
+      "tag": "REST + HMAC",
+      "pos": [1200, 360],
+      "size": [140, 60],
+      "sources": [
+        {
+          "path": "server/src/services/integrationPoller.js",
+          "line": 94,
+          "end_line": 189,
+          "label": "GitHub REST Event Poller"
+        },
+        {
+          "path": "server/src/routes/integrations.js",
+          "line": 106,
+          "end_line": 123,
+          "label": "GitHub Webhook Receiver"
+        }
+      ]
+    },
+    {
+      "id": "ext_gmail",
+      "type": "external",
+      "label": "Google Services",
+      "sublabel": "Gmail API & Pub/Sub",
+      "tag": "OAuth 2.0",
+      "pos": [1200, 560],
+      "size": [140, 60],
+      "sources": [
+        {
+          "path": "server/src/services/integrationPoller.js",
+          "line": 194,
+          "end_line": 256,
+          "label": "Gmail v1 REST Messages"
+        },
+        {
+          "path": "server/src/routes/integrations.js",
+          "line": 254,
+          "end_line": 289,
+          "label": "Pub/Sub Push Receiver"
+        }
+      ]
+    },
+    {
+      "id": "ext_meta",
+      "type": "external",
+      "label": "Meta WhatsApp",
+      "sublabel": "Cloud API Webhooks",
+      "tag": "Inbound Messages",
+      "pos": [1200, 740],
+      "size": [140, 60],
+      "sources": [
+        {
+          "path": "server/src/routes/integrations.js",
+          "line": 393,
+          "end_line": 454,
+          "label": "WhatsApp Webhook Receiver"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Render PaaS (notifyx-api Web Service)",
+      "wraps": ["rate_limiter", "auth_guard", "socket_server", "express_api", "async_dispatcher", "integration_poller"],
+      "pad": 18
+    },
+    {
+      "kind": "region",
+      "label": "Cloud Managed Persistence",
+      "wraps": ["mongo_db", "redis_cache"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "External SaaS & Ingestion Providers",
+      "wraps": ["ext_github", "ext_gmail", "ext_meta"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "landing-to-dash",
+      "from": "landing",
+      "to": "dashboard",
+      "label": "launch app"
+    },
+    {
+      "id": "clients-to-ratelimit",
+      "from": "users_apps",
+      "to": "rate_limiter",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ratelimit-to-auth",
+      "from": "rate_limiter",
+      "to": "auth_guard",
+      "label": "quota ok"
+    },
+    {
+      "id": "dash-to-auth",
+      "from": "dashboard",
+      "to": "auth_guard",
+      "label": "JWT REST",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "auth-to-api",
+      "from": "auth_guard",
+      "to": "express_api",
+      "label": "authorized req",
+      "variant": "security"
+    },
+    {
+      "id": "api-to-dispatcher",
+      "from": "express_api",
+      "to": "async_dispatcher",
+      "label": "setImmediate",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "dispatcher-to-socket",
+      "from": "async_dispatcher",
+      "to": "socket_server",
+      "label": "emit live event",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "socket-to-dash",
+      "from": "socket_server",
+      "to": "dashboard",
+      "label": "WebSocket stream",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "express-to-mongo",
+      "from": "express_api",
+      "to": "mongo_db",
+      "label": "CRUD Users & Keys"
+    },
+    {
+      "id": "dispatcher-to-mongo",
+      "from": "async_dispatcher",
+      "to": "mongo_db",
+      "label": "save notification",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "api-to-redis",
+      "from": "express_api",
+      "to": "redis_cache",
+      "label": "SET NX idempotency",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "poller-to-api",
+      "from": "integration_poller",
+      "to": "express_api",
+      "label": "mapped events",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "poller-to-redis",
+      "from": "integration_poller",
+      "to": "redis_cache",
+      "label": "backoff & lastId"
+    },
+    {
+      "id": "ext-github-to-poller",
+      "from": "ext_github",
+      "to": "integration_poller",
+      "label": "REST events / hooks",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "ext-gmail-to-poller",
+      "from": "ext_gmail",
+      "to": "integration_poller",
+      "label": "messages & pubsub",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "ext-meta-to-poller",
+      "from": "ext_meta",
+      "to": "integration_poller",
+      "label": "Cloud Webhooks",
+      "fromSide": "left",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Ingestion & Security Gate",
+      "items": [
+        "API Clients and Dashboard authenticate via Bearer JWT or SHA-256 hashed API Keys",
+        "In-memory fixed-window rate limiter enforces 10,000 req/min global and 50 req/min per-user quotas",
+        "Layer-1 idempotency uses Redis SET NX EX 86400 to discard duplicate notification requests"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Async Dispatch & Delivery",
+      "items": [
+        "POST /api/notify returns 202 Accepted immediately, queuing delivery via Node.js setImmediate",
+        "Delivery pipeline checks user preferences, muted categories, and quiet hours before saving",
+        "Connected recipients receive real-time push events broadcast to their private Socket.io room"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Polling & Webhook Integrations",
+      "items": [
+        "In-process scheduler polls GitHub public events and Gmail messages on a 5-minute interval",
+        "Inbound webhooks for GitHub (HMAC-SHA256 verified) and WhatsApp Cloud API land in the API server",
+        "Offline users receive backlog sync upon reconnecting their Socket.io session"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Runtime Architecture Decision",
+      "items": [
+        "Hosted on Render as a unified Node.js web service (notifyx-api) on port 3000",
+        "BullMQ external worker service was intentionally retired to avoid idle Redis polling costs",
+        "Persistent notification history is stored in MongoDB Atlas with 30-day automatic TTL expiry"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\anupb\\Documents\\Project\\NotifyX\\.archify\\architecture-notifyx-runtime-20261003-230200\\candidate.json",
+    "sha256": "ae030233590eb9b97fc51c25c2276ea5019299e482a7a1dde28db0640effd09c",
+    "bytes": 12711
+  },
+  "artifact": {
+    "path": "C:\\Users\\anupb\\Documents\\Project\\NotifyX\\.archify\\architecture-notifyx-runtime-20261003-230200\\notifyx-runtime.html",
+    "sha256": "db811b08661efb5b5b3609c56f58e8ebba06868e7cd69209c239600e8bcda583",
+    "bytes": 788616
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\anupb\\Documents\\Project\\NotifyX\\.archify\\architecture-notifyx-runtime-20261003-230200\\review-2\\notifyx-runtime.finalize.json",
+    "summaryReceipt": "C:\\Users\\anupb\\Documents\\Project\\NotifyX\\.archify\\architecture-notifyx-runtime-20261003-230200\\review-2\\notifyx-runtime.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\anupb\\Documents\\Project\\NotifyX\\.archify\\architecture-notifyx-runtime-20261003-230200\\review-2\\notifyx-runtime.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-03T17:33:16.033Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 6140,
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 1,
+      "routesOverSuggestedBends": 5,
+      "routesOverSuggestedStretch": 1
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "id": "dispatcher-to-mongo",
+            "from": "async_dispatcher",
+            "to": "mongo_db",
+            "label": "save notification",
+            "collectionIndex": 9,
+            "artifactIndex": 10
+          },
+          "right": {
+            "id": "api-to-redis",
+            "from": "express_api",
+            "to": "redis_cache",
+            "label": "SET NX idempotency",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "point": [
+            830,
+            276
+          ]
+        }
+      ],
+      "detours": [
+        {
+          "relationship": {
+            "id": "dispatcher-to-socket",
+            "from": "async_dispatcher",
+            "to": "socket_server",
+            "label": "emit live event",
+            "collectionIndex": 6,
+            "artifactIndex": 7
+          },
+          "bends": 4,
+          "stretch": 1.386
+        },
+        {
+          "relationship": {
+            "id": "dispatcher-to-mongo",
+            "from": "async_dispatcher",
+            "to": "mongo_db",
+            "label": "save notification",
+            "collectionIndex": 9,
+            "artifactIndex": 10
+          },
+          "bends": 3,
+          "stretch": 1
+        },
+        {
+          "relationship": {
+            "id": "api-to-redis",
+            "from": "express_api",
+            "to": "redis_cache",
+            "label": "SET NX idempotency",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "bends": 3,
+          "stretch": 1
+        },
+        {
+          "relationship": {
+            "id": "poller-to-redis",
+            "from": "integration_poller",
+            "to": "redis_cache",
+            "label": "backoff &amp; lastId",
+            "collectionIndex": 12,
+            "artifactIndex": 13
+          },
+          "bends": 4,
+          "stretch": 1.31
+        },
+        {
+          "relationship": {
+            "id": "ext-gmail-to-poller",
+            "from": "ext_gmail",
+            "to": "integration_poller",
+            "label": "messages &amp; pubsub",
+            "collectionIndex": 14,
+            "artifactIndex": 15
+          },
+          "bends": 4,
+          "stretch": 1.078
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "async_dispatcher → mongo_db crosses express_api → redis_cache: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "async_dispatcher → socket_server needs 4 bends: move node async_dispatcher or socket_server so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "async_dispatcher → mongo_db needs 3 bends: move node async_dispatcher or mongo_db so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "express_api → redis_cache needs 3 bends: move node express_api or redis_cache so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "integration_poller → redis_cache needs 4 bends: move node integration_poller or redis_cache so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "ext_gmail → integration_poller needs 4 bends: move node ext_gmail or integration_poller so they share a row or column with matching centers, or sit diagonally with a clear corner."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "88cf3ac8-b3dd-4367-aacd-3b412980e840",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\anupb\\Documents\\Project\\NotifyX\\.archify\\architecture-notifyx-runtime-20261003-230200\\candidate.json",
+  "output": "C:\\Users\\anupb\\Documents\\Project\\NotifyX\\.archify\\architecture-notifyx-runtime-20261003-230200\\notifyx-runtime.html",
+  "specification": {
+    "sha256": "ae030233590eb9b97fc51c25c2276ea5019299e482a7a1dde28db0640effd09c",
+    "bytes": 12711
+  },
+  "artifact": {
+    "sha256": "db811b08661efb5b5b3609c56f58e8ebba06868e7cd69209c239600e8bcda583",
+    "bytes": 788616
+  }
+}

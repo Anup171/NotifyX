@@ -60,4 +60,6 @@ coverage/
 # Agent configuration
 .agents/
 .gemini/
+.claude/
+skills-lock.json
 
